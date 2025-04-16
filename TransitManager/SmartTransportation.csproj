@@ -25,8 +25,10 @@
 			<Private>false</Private>
 		</Reference>
 		<Reference Include="Colossal.UI">
+			<Private>false</Private>
 		</Reference>
 		<Reference Include="Colossal.UI.Binding">
+			<Private>false</Private>
 		</Reference>
 		<Reference Include="Game">
 			<Private>false</Private>

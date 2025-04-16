@@ -225,11 +225,19 @@ namespace SmartTransportation
                         DynamicBuffer<RouteVehicle> vehicles = EntityManager.GetBuffer<RouteVehicle>(trans);
 
                         int passengers = 0;
+                        int emptyVehicles = 0;
                         for (int i = 0; i < vehicles.Length; i++)
                         {
                             RouteVehicle vehicle = vehicles[i];
-                            DynamicBuffer<Passenger> pax = EntityManager.GetBuffer<Passenger>(vehicle.m_Vehicle);
-                            passengers += pax.Length;
+                            DynamicBuffer<Passenger> pax;
+                            if(EntityManager.TryGetBuffer<Passenger>(vehicle.m_Vehicle, true, out pax))
+                            {
+                                if (pax.Length == 0)
+                                {
+                                    emptyVehicles++;
+                                }
+                                passengers += pax.Length;
+                            }
                         }
 
                         int passenger_capacity = publicTransportVehicleData.m_PassengerCapacity;
@@ -388,6 +396,12 @@ namespace SmartTransportation
                             setVehicles = minVehicles;
                         }
 
+                        //If too many empty vehicles, don't update
+                        if(emptyVehicles/(float)oldVehicles > 0.3f)
+                        {
+                            setVehicles = oldVehicles;
+                        }
+
                         if (standard_ticket == 0)
                         {
                             ticketPrice = 0;
@@ -402,7 +416,7 @@ namespace SmartTransportation
 
                         if (Mod.m_Setting.debug && (oldVehicles != setVehicles || transportLine.m_TicketPrice != oldTicketPrice))
                         {
-                            Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Ticket Price:{transportLine.m_TicketPrice}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Passengers:{passengers}, Waiting Passengers:{waiting}, Occupancy:{capacity}, Target Occupancy:{occupancy/100f}");
+                            Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Ticket Price:{transportLine.m_TicketPrice}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Empty Vehicles:{emptyVehicles}, Passengers:{passengers}, Waiting Passengers:{waiting}, Occupancy:{capacity}, Target Occupancy:{occupancy/100f}");
                         }
                     }
                 }
