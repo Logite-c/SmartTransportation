@@ -3,6 +3,7 @@ using Game.Policies;
 using Game.Prefabs;
 using Game.Routes;
 using HarmonyLib;
+using SmartTransportation.Extensions;
 using System;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
@@ -11,7 +12,7 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-namespace SmartTransportation
+namespace SmartTransportation.Systems
 {
     [HarmonyPatch]
     public class RouteModifierInitializeSystem
@@ -168,7 +169,7 @@ namespace SmartTransportation
             {
                 while (modifiers.Length <= (int)modifierData.m_Type)
                 {
-                    modifiers.Add(default(RouteModifier));
+                    modifiers.Add(default);
                 }
                 RouteModifier modifier = modifiers[(int)modifierData.m_Type];
                 AddModifierData(ref modifier, modifierData, delta);
@@ -201,12 +202,12 @@ namespace SmartTransportation
                 InitializeRouteModifiersJob jobData = initializeRouteModifiersJob;
 
                 var dependency = __instance.GetMemberValue<JobHandle>("Dependency");
-                __instance.SetMemberValue("Dependency", JobChunkExtensions.ScheduleParallel(jobData, __instance.GetMemberValue<EntityQuery>("m_CreatedQuery"), dependency));
+                __instance.SetMemberValue("Dependency", jobData.ScheduleParallel(__instance.GetMemberValue<EntityQuery>("m_CreatedQuery"), dependency));
             }
             catch (Exception ex)
             {
-                var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
-                logger.Critical(ex, $"Something went wrong in the OnUpdate of RouteModifierInitializeSystem");
+                //var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
+                //logger.Critical(ex, $"Something went wrong in the OnUpdate of RouteModifierInitializeSystem");
             }
 
             return false;

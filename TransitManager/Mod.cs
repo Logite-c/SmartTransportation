@@ -3,8 +3,11 @@ using Colossal.Logging;
 using Colossal.PSI.Environment;
 using Game;
 using Game.Modding;
+using Game.Prefabs;
 using Game.SceneFlow;
 using HarmonyLib;
+using SmartTransportation.Bridge;
+using SmartTransportation.Systems;
 using System.IO;
 using System.Linq;
 using Unity.Entities;
@@ -53,6 +56,10 @@ namespace SmartTransportation
             updateSystem.UpdateAt<ModifiedSystem>(SystemUpdatePhase.Modification4);
             updateSystem.UpdateAt<SmartTransitSystem>(SystemUpdatePhase.GameSimulation);
             //updateSystem.UpdateAt<SmartTaxiSystem>(SystemUpdatePhase.GameSimulation);
+
+            updateSystem.UpdateAt<ManageRouteBridge>(SystemUpdatePhase.GameSimulation);
+            //ManageRouteBridge bridge = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<ManageRouteBridge>();
+            
 
             //Harmony
             var harmony = new Harmony(harmonyID);

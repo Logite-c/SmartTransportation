@@ -25,6 +25,10 @@ using Game.UI.InGame;
 using static Game.Rendering.OverlayRenderSystem;
 using Game.Pathfind;
 using Unity.Mathematics;
+using SmartTransportation.Systems;
+using static Game.Prefabs.TriggerPrefabData;
+using SmartTransportation.Components;
+using RouteModifierInitializeSystem = SmartTransportation.Systems.RouteModifierInitializeSystem;
 
 namespace SmartTransportation
 {
@@ -184,8 +188,21 @@ namespace SmartTransportation
                 transportLine = EntityManager.GetComponentData<TransportLine>(trans);
                 prefab = EntityManager.GetComponentData<PrefabRef>(trans);
                 routeNumber = EntityManager.GetComponentData<RouteNumber>(trans);
+                RouteRule routeRule;
 
                 transportLineData = EntityManager.GetComponentData<TransportLineData>(prefab.m_Prefab);
+
+                if (EntityManager.TryGetComponent<RouteRule>(trans, out routeRule))
+                {
+                    if(routeRule.disabled)
+                    {
+                        if (Mod.m_Setting.debug)
+                        {
+                            Mod.log.Info($"Transport Type: {transportLineData.m_TransportType}, Route Number: {routeNumber.m_Number} - Disabled");
+                        }
+                        continue;
+                    }
+                }
 
                 //If some modes are disabled, continue to the next transport line
                 switch (transportLineData.m_TransportType)

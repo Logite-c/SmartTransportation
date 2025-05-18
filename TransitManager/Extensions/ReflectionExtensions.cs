@@ -3,7 +3,7 @@ using System;
 using System.Reflection;
 
 //Original Code from SonnyX
-namespace SmartTransportation
+namespace SmartTransportation.Extensions
 {
     public static class ReflectionExtensions
     {
@@ -13,11 +13,11 @@ namespace SmartTransportation
         /// <param name="obj">Object to be reflected.</param>
         /// <param name="memberName">String name of member.</param>
         /// <returns>Value of the member of the origial object.</returns>
-        /// <exception cref="System.Exception">Exception for not finding the specified member name within the object.</exception>
+        /// <exception cref="Exception">Exception for not finding the specified member name within the object.</exception>
         public static T GetMemberValue<T>(this object obj, string memberName)
         {
             var memInf = GetMemberInfo(obj, memberName);
-            object? value = null;
+            object value = null;
             try
             {
                 if (memInf is PropertyInfo)
@@ -31,14 +31,14 @@ namespace SmartTransportation
                     return (T)value;
                 }
 
-                var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
+                var logger = LogManager.GetLogger(nameof(SmartTransportation)).SetShowsErrorsInUI(true);
                 logger.Critical($"{nameof(ReflectionExtensions)}: Couldn't find member name: {memberName}!");
 
                 throw new Exception($"{nameof(ReflectionExtensions)}: Couldn't find member name: {memberName}!");
             }
-            catch(InvalidCastException ex)
+            catch (InvalidCastException ex)
             {
-                var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
+                var logger = LogManager.GetLogger(nameof(SmartTransportation)).SetShowsErrorsInUI(true);
                 logger.Critical(ex, $"Cannot cast {value?.GetType().FullName} to {typeof(T).GetType().FullName}");
 
                 throw new Exception($"Cannot cast {value?.GetType().FullName} to {typeof(T).GetType().FullName}");
@@ -52,7 +52,7 @@ namespace SmartTransportation
         /// <param name="memberName">String name of member.</param>
         /// <param name="newValue">New value to be set.</param>
         /// <returns>Returns old value.</returns>
-        /// <exception cref="System.Exception">Exception thrown if member name is not found on object.</exception>
+        /// <exception cref="Exception">Exception thrown if member name is not found on object.</exception>
         public static T SetMemberValue<T>(this object obj, string memberName, T newValue)
         {
             var memInf = GetMemberInfo(obj, memberName);
@@ -68,7 +68,7 @@ namespace SmartTransportation
             }
             else
             {
-                var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
+                var logger = LogManager.GetLogger(nameof(SmartTransportation)).SetShowsErrorsInUI(true);
                 logger.Critical($"Did not set {memberName} to {newValue} as the {memberName} is neither a Property or a Field...");
             }
 
@@ -81,7 +81,7 @@ namespace SmartTransportation
         /// <param name="obj">Object to be reflected.</param>
         /// <param name="memberName">String name of member.</param>
         /// <returns>Member info.</returns>
-        private static MemberInfo? GetMemberInfo(object obj, string memberName)
+        private static MemberInfo GetMemberInfo(object obj, string memberName)
         {
             var prps = new System.Collections.Generic.List<PropertyInfo>
             {
@@ -109,7 +109,7 @@ namespace SmartTransportation
                 return flds[0];
             }
 
-            var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
+            var logger = LogManager.GetLogger(nameof(SmartTransportation)).SetShowsErrorsInUI(true);
             logger.Log(Level.Warn, $"{memberName}'s GetMemberInfo returned null", null);
 
             return null;

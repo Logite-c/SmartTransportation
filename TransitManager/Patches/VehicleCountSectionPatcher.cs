@@ -8,6 +8,7 @@ using Game.Simulation;
 using Game.UI.InGame;
 using HarmonyLib;
 using SmartTransportation;
+using SmartTransportation.Extensions;
 using System;
 using System.Runtime.CompilerServices;
 using Unity.Collections;
@@ -15,7 +16,7 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-namespace TransportPolicyAdjuster
+namespace SmartTransportation.Patches
 {
     [HarmonyPatch]
     public class VehicleCountSectionPatcher
@@ -65,23 +66,23 @@ namespace TransportPolicyAdjuster
             public void Execute()
             {
                 TransportLineData transportLineData = m_TransportLineDatas[m_SelectedPrefab];
-                DynamicBuffer<RouteVehicle> routeVehicle = m_RouteVehicles[this.m_SelectedEntity];
+                DynamicBuffer<RouteVehicle> routeVehicle = m_RouteVehicles[m_SelectedEntity];
                 DynamicBuffer<RouteModifier> modifiers = m_RouteModifiers[m_SelectedEntity];
                 DynamicBuffer<RouteModifierData> routeModifiers = m_RouteModifierDatas[m_Policy];
                 PolicySliderData sliderData = m_PolicySliderDatas[m_Policy];
 
                 float defaultVehicleInterval = transportLineData.m_DefaultVehicleInterval;
                 float vehicleInterval = defaultVehicleInterval;
-                PolicySliderData policySliderData = this.m_PolicySliderDatas[this.m_Policy];
+                PolicySliderData policySliderData = m_PolicySliderDatas[m_Policy];
 
                 RouteUtils.ApplyModifier(ref vehicleInterval, modifiers, RouteModifierType.VehicleInterval);
 
-                float stableDuration = this.CalculateStableDuration(transportLineData);
+                float stableDuration = CalculateStableDuration(transportLineData);
 
-                this.m_Duration.Value = stableDuration;
+                m_Duration.Value = stableDuration;
 
-                this.m_IntResults[0] = TransportLineSystem.CalculateVehicleCount(vehicleInterval, stableDuration);
-                this.m_IntResults[1] = routeVehicle.Length;
+                m_IntResults[0] = TransportLineSystem.CalculateVehicleCount(vehicleInterval, stableDuration);
+                m_IntResults[1] = routeVehicle.Length;
                 // Min
                 m_IntResults[2] = SmartTransitSystem.CalculateVehicleCountFromAdjustment(policySliderData.m_Range.min, defaultVehicleInterval, stableDuration, m_RouteModifierDatas, m_Policy, m_PolicySliderDatas);
                 // Max
@@ -107,7 +108,7 @@ namespace TransportPolicyAdjuster
                         break;
                 }
 
-                if(m_IntResults[2] < 1)
+                if (m_IntResults[2] < 1)
                 {
                     m_IntResults[2] = 1;
                 }
@@ -152,54 +153,54 @@ namespace TransportPolicyAdjuster
         }
 
         [HarmonyReversePatch]
-        [HarmonyPatch(typeof(Game.UI.InGame.VehicleCountSection), nameof(Visible))]
+        [HarmonyPatch(typeof(VehicleCountSection), nameof(Visible))]
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public static bool Visible(Game.UI.InGame.VehicleCountSection instance)
+        public static bool Visible(VehicleCountSection instance)
         {
-            var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
+            var logger = LogManager.GetLogger(nameof(SmartTransportation)).SetShowsErrorsInUI(true);
             logger.Info("Reversed patch: Visible in VehicleCountSection");
             return false;
         }
-        
-        [HarmonyPatch(typeof(Game.UI.InGame.VehicleCountSection), nameof(OnSetVehicleCount))]
+
+        [HarmonyPatch(typeof(VehicleCountSection), nameof(OnSetVehicleCount))]
         [HarmonyPrefix]
-        public static bool OnSetVehicleCount(float newVehicleCount, ref Game.UI.InGame.VehicleCountSection __instance)
+        public static bool OnSetVehicleCount(float newVehicleCount, ref VehicleCountSection __instance)
         {
             try
             {
                 var m_PoliciesUISystem = __instance.GetMemberValue<PoliciesUISystem>("m_PoliciesUISystem");
                 var selectedEntity = __instance.GetMemberValue<Entity>("selectedEntity");
                 var m_VehicleCountPolicy = __instance.GetMemberValue<Entity>("m_VehicleCountPolicy");
-        
+
                 var stableDuration = __instance.GetMemberValue<float>("stableDuration");
-        
+
                 var typeHandle = __instance.GetMemberValue<object>("__TypeHandle");
                 var __Game_Prefabs_TransportLineData_RO_ComponentLookup = typeHandle.GetMemberValue<ComponentLookup<TransportLineData>>("__Game_Prefabs_TransportLineData_RO_ComponentLookup");
                 var defaultVehicleInterval = __Game_Prefabs_TransportLineData_RO_ComponentLookup[__instance.GetMemberValue<Entity>("selectedPrefab")].m_DefaultVehicleInterval;
-        
+
                 //Mod.log.Info($"newVehicleCount: {newVehicleCount}, stableDuration: {stableDuration}, defaultVehicleInterval: {defaultVehicleInterval}");
-        
+
                 float vehicleInterval = 100f / (stableDuration / (defaultVehicleInterval * newVehicleCount));
                 m_PoliciesUISystem.SetPolicy(selectedEntity, m_VehicleCountPolicy, active: true, vehicleInterval);
             }
             catch (Exception ex)
             {
-                var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
+                var logger = LogManager.GetLogger(nameof(SmartTransportation)).SetShowsErrorsInUI(true);
                 logger.Critical(ex, $"Something went wrong in the OnSetVehicleCount of VehicleCountSection");
             }
             return false;
         }
 
-        [HarmonyPatch(typeof(Game.UI.InGame.VehicleCountSection), nameof(OnWriteProperties))]
+        [HarmonyPatch(typeof(VehicleCountSection), nameof(OnWriteProperties))]
         [HarmonyPrefix]
-        public static bool OnWriteProperties(ref IJsonWriter writer, ref Game.UI.InGame.VehicleCountSection __instance)
+        public static bool OnWriteProperties(ref IJsonWriter writer, ref VehicleCountSection __instance)
         {
             try
             {
                 var typeHandle = __instance.GetMemberValue<object>("__TypeHandle");
                 var __Game_Prefabs_TransportLineData_RO_ComponentLookup = typeHandle.GetMemberValue<ComponentLookup<TransportLineData>>("__Game_Prefabs_TransportLineData_RO_ComponentLookup");
                 __Game_Prefabs_TransportLineData_RO_ComponentLookup.Update(ref __instance.CheckedStateRef);
-        
+
                 writer.PropertyName("vehicleCountMin");
                 writer.Write(__instance.GetMemberValue<int>("vehicleCountMin"));
                 writer.PropertyName("vehicleCountMax");
@@ -211,15 +212,15 @@ namespace TransportPolicyAdjuster
             }
             catch (Exception ex)
             {
-                var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
+                var logger = LogManager.GetLogger(nameof(SmartTransportation)).SetShowsErrorsInUI(true);
                 logger.Critical(ex, $"Something went wrong in the OnWriteProperties of VehicleCountSection");
             }
             return false;
         }
 
-        [HarmonyPatch(typeof(Game.UI.InGame.VehicleCountSection), nameof(OnUpdate))]
+        [HarmonyPatch(typeof(VehicleCountSection), nameof(OnUpdate))]
         [HarmonyPrefix]
-        public static bool OnUpdate(ref Game.UI.InGame.VehicleCountSection __instance)
+        public static bool OnUpdate(ref VehicleCountSection __instance)
         {
             try
             {
@@ -271,12 +272,12 @@ namespace TransportPolicyAdjuster
                         m_IntResults = __instance.GetMemberValue<NativeArray<int>>("m_IntResults"),
                         m_Duration = __instance.GetMemberValue<NativeReference<float>>("m_DurationResult"),
                     };
-                    IJobExtensions.Schedule(jobData, __instance.GetMemberValue<JobHandle>("Dependency")).Complete();
+                    jobData.Schedule(__instance.GetMemberValue<JobHandle>("Dependency")).Complete();
                 }
             }
             catch (Exception ex)
             {
-                var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
+                var logger = LogManager.GetLogger(nameof(SmartTransportation)).SetShowsErrorsInUI(true);
                 logger.Critical(ex, $"Something went wrong in the OnUpdate of VehicleCountSection");
             }
             return false;
