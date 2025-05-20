@@ -28,7 +28,7 @@ namespace SmartTransportation.Bridge
             manageRouteSystem.setRouteRule(transportType, routeId, routeRuleId, disable);
         }
 
-        public static (int customRuleId, bool isDisabled) GetRouteRuleInfo(TransportType transportType, int routeId)
+        public static (int customRuleId, bool isDisabled) getRouteRuleInfo(TransportType transportType, int routeId)
         {
             ManageRouteSystem manageRouteSystem = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<ManageRouteSystem>();
             return manageRouteSystem.GetRouteRuleInfo(transportType, routeId);
