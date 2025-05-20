@@ -85,32 +85,17 @@ namespace SmartTransportation.Bridge
             }
         }
 
-        public int getRouteRuleId(TransportType transportType, int routeId)
+        public (int customRuleId, bool isDisabled) GetRouteRuleInfo(TransportType transportType, int routeId)
         {
             Entity routeEntity = GetRouteEntityFromId(routeId, transportType);
-            RouteRule routeRule;
 
-            if (EntityManager.TryGetComponent<RouteRule>(routeEntity, out routeRule))
+            if (EntityManager.TryGetComponent<RouteRule>(routeEntity, out RouteRule routeRule))
             {
-                return routeRule.customRule;
-            } else
-            {
-               return 0; // Default rule ID
-            }
-        }
-
-        public bool getRouteDisabled(TransportType transportType, int routeId)
-        {
-            Entity routeEntity = GetRouteEntityFromId(routeId, transportType);
-            RouteRule routeRule;
-
-            if (EntityManager.TryGetComponent<RouteRule>(routeEntity, out routeRule))
-            {
-                return routeRule.disabled;
+                return (routeRule.customRule, routeRule.disabled);
             }
             else
             {
-                return false;
+                return (0, false); // Default rule ID and not disabled
             }
         }
 
