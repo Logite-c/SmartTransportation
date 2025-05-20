@@ -19,66 +19,32 @@ using Unity.Entities;
 
 namespace SmartTransportation.Bridge
 {
-    public partial class ManageRouteBridge : GameSystemBase
+    public static class ManageRouteBridge
     {
-        private EntityQuery entityQuery;
-        private Entity GetRouteEntityFromId(int routeId, TransportType transportType)
+
+        public static void setRouteRule(TransportType transportType, int routeId, int routeRuleId, bool disable)
         {
-            entityQuery = GetEntityQuery(new EntityQueryDesc()
-            {
-                All = new[] {
-                    ComponentType.ReadOnly<RouteNumber>(),
-                    ComponentType.ReadOnly<TransportLine>(),
-                    ComponentType.ReadOnly<PrefabRef>()
-                }
-            });
-            RequireForUpdate(entityQuery);
-
-            var entities = entityQuery.ToEntityArray(Allocator.Temp);
-
-            foreach (var ent in entities)
-            {
-                PrefabRef prefab;
-                TransportLine transportLine;
-                TransportLineData transportLineData;
-                RouteNumber routeNumber;
-
-                transportLine = EntityManager.GetComponentData<TransportLine>(ent);
-                prefab = EntityManager.GetComponentData<PrefabRef>(ent);
-                routeNumber = EntityManager.GetComponentData<RouteNumber>(ent);
-                transportLineData = EntityManager.GetComponentData<TransportLineData>(prefab.m_Prefab);
-
-                if (routeNumber.m_Number == routeId &&
-                    transportLineData.m_TransportType == transportType)
-                {
-                    return ent;
-                }
-            }
-            
-            entities.Dispose();
-            return Entity.Null; // Not found
+            ManageRouteSystem manageRouteSystem = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<ManageRouteSystem>();
+            manageRouteSystem.setRouteRule(transportType, routeId, routeRuleId, disable);
         }
 
-        public void setRouteRule(TransportType transportType, int routeId, int routeRuleId, bool disable)
+        public static int getRouteRuleId(TransportType transportType, int routeId)
         {
-            var routeRule = new RouteRule(routeRuleId, disable);
-
-            Entity routeEntity = GetRouteEntityFromId(routeId, transportType);
-
-            if (EntityManager.HasComponent<RouteRule>(routeEntity))
-            {
-                EntityManager.SetComponentData(routeEntity, routeRule);
-            }
-            else
-            {
-                EntityManager.AddComponentData(routeEntity, routeRule);
-            }
+            ManageRouteSystem manageRouteSystem = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<ManageRouteSystem>();
+            return manageRouteSystem.getRouteRuleId(transportType, routeId);
         }
 
-        protected override void OnUpdate()
+        public static bool getRouteDisabled(TransportType transportType, int routeId)
         {
-            setRouteRule(TransportType.Bus, 1, 0, true);
-            this.Enabled = false;
+            ManageRouteSystem manageRouteSystem = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<ManageRouteSystem>();
+            return manageRouteSystem.getRouteDisabled(transportType, routeId);
         }
+
+        public static (int, string)[] getRouteRuleNames()
+        {
+            ManageRouteSystem manageRouteSystem = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<ManageRouteSystem>();
+            return manageRouteSystem.getRouteRuleNames();
+        }
+
     }
 }

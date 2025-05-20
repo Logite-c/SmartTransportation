@@ -57,8 +57,8 @@ namespace SmartTransportation
             updateSystem.UpdateAt<SmartTransitSystem>(SystemUpdatePhase.GameSimulation);
             //updateSystem.UpdateAt<SmartTaxiSystem>(SystemUpdatePhase.GameSimulation);
 
-            updateSystem.UpdateAt<ManageRouteBridge>(SystemUpdatePhase.GameSimulation);
-            //ManageRouteBridge bridge = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<ManageRouteBridge>();
+            updateSystem.UpdateAt<ManageRouteSystem>(SystemUpdatePhase.GameSimulation);
+            
             
 
             //Harmony
