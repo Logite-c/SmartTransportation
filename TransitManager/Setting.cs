@@ -70,6 +70,40 @@ namespace SmartTransportation
             min_vahicles_adj_Subway = -20;
             max_vahicles_adj_Train = 0;
             min_vahicles_adj_Train = 30;
+            target_occupancy_Custom1 = 30;
+            max_ticket_increase_Custom1 = 20;
+            max_ticket_discount_Custom1 = 40;
+            standard_ticket_Custom1 = 8;
+            max_vahicles_adj_Custom1 = 0;
+            min_vahicles_adj_Custom1 = 25;
+            target_occupancy_Custom2 = 30;
+            max_ticket_increase_Custom2 = 20;
+            max_ticket_discount_Custom2 = 40;
+            standard_ticket_Custom2 = 8;
+            max_vahicles_adj_Custom2 = 0;
+            min_vahicles_adj_Custom2 = 25;
+
+            target_occupancy_Custom3 = 30;
+            max_ticket_increase_Custom3 = 20;
+            max_ticket_discount_Custom3 = 40;
+            standard_ticket_Custom3 = 8;
+            max_vahicles_adj_Custom3 = 0;
+            min_vahicles_adj_Custom3 = 25;
+
+            target_occupancy_Custom4 = 30;
+            max_ticket_increase_Custom4 = 20;
+            max_ticket_discount_Custom4 = 40;
+            standard_ticket_Custom4 = 8;
+            max_vahicles_adj_Custom4 = 0;
+            min_vahicles_adj_Custom4 = 25;
+
+            target_occupancy_Custom5 = 30;
+            max_ticket_increase_Custom5 = 20;
+            max_ticket_discount_Custom5 = 40;
+            standard_ticket_Custom5 = 8;
+            max_vahicles_adj_Custom5 = 0;
+            min_vahicles_adj_Custom5 = 25;
+
         }
 
         [SettingsUISection(TransitSection, BusGroup)]

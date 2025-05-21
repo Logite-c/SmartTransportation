@@ -69,11 +69,10 @@ namespace SmartTransportation.Bridge
             return Entity.Null; // Not found
         }
 
-        public void setRouteRule(TransportType transportType, int routeId, int routeRuleId, bool disable)
+        public void SetRouteRule(Entity routeEntity, int routeRuleId, bool disable)
         {
             var routeRule = new RouteRule(routeRuleId, disable);
 
-            Entity routeEntity = GetRouteEntityFromId(routeId, transportType);
             Mod.log.Info($"RouteEntity: {routeEntity}");
             if (EntityManager.HasComponent<RouteRule>(routeEntity))
             {
@@ -85,10 +84,8 @@ namespace SmartTransportation.Bridge
             }
         }
 
-        public (int customRuleId, bool isDisabled) GetRouteRuleInfo(TransportType transportType, int routeId)
+        public (int customRuleId, bool isDisabled) GetRouteRuleInfo(Entity routeEntity)
         {
-            Entity routeEntity = GetRouteEntityFromId(routeId, transportType);
-
             if (EntityManager.TryGetComponent<RouteRule>(routeEntity, out RouteRule routeRule))
             {
                 return (routeRule.customRule, routeRule.disabled);
@@ -99,7 +96,7 @@ namespace SmartTransportation.Bridge
             }
         }
 
-        public (int, string)[] getRouteRuleNames()
+        public (int, string)[] GetRouteRuleNames()
         {
             return new (int, string)[]
             {
@@ -115,13 +112,14 @@ namespace SmartTransportation.Bridge
 
         protected override void OnUpdate()
         {
-            //setRouteRule(TransportType.Bus, 2, 1, true);
-            //
-            //if(firstUpdate)
+            //Entity routeEntity = GetRouteEntityFromId(2, TransportType.Bus);
+            //SetRouteRule(routeEntity, 1, true);
+            //Mod.log.Info($"SetRouteRule set");
+            //if (firstUpdate)
             //{
-            //    Mod.log.Info($"RouteRule: {getRouteRuleId(TransportType.Bus, 1)}");
-            //    Mod.log.Info($"RouteDisabled: {getRouteDisabled(TransportType.Bus, 1)}");
-            //    var routeNames = getRouteRuleNames();
+            //    Mod.log.Info($"GetRouteRuleInfo: {GetRouteRuleInfo(routeEntity)}");
+            //
+            //    var routeNames = GetRouteRuleNames();
             //    foreach (var (id, name) in routeNames)
             //    {
             //        Mod.log.Info($"Route ID: {id}, Name: {name}");
@@ -131,7 +129,7 @@ namespace SmartTransportation.Bridge
             //
             //firstUpdate = true;
 
-            this.Enabled = false;
+            //this.Enabled = false;
         }
     }
 }

@@ -21,24 +21,32 @@ namespace SmartTransportation.Bridge
 {
     public static class ManageRouteBridge
     {
+        private static readonly ManageRouteSystem manageRouteSystem =
+            World.DefaultGameObjectInjectionWorld?.GetOrCreateSystemManaged<ManageRouteSystem>()
+            ?? throw new InvalidOperationException("ManageRouteSystem could not be initialized.");
 
-        public static void setRouteRule(TransportType transportType, int routeId, int routeRuleId, bool disable)
+        /// <summary>
+        /// Sets a rule for a given transport route.
+        /// </summary>
+        public static void SetRouteRule(Entity routeEntity, int routeRuleId, bool disable)
         {
-            ManageRouteSystem manageRouteSystem = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<ManageRouteSystem>();
-            manageRouteSystem.setRouteRule(transportType, routeId, routeRuleId, disable);
+            manageRouteSystem.SetRouteRule(routeEntity, routeRuleId, disable);
         }
 
-        public static (int customRuleId, bool isDisabled) getRouteRuleInfo(TransportType transportType, int routeId)
+        /// <summary>
+        /// Gets the rule info for a given route.
+        /// </summary>
+        public static (int CustomRuleId, bool IsDisabled) GetRouteRuleInfo(Entity routeEntity)
         {
-            ManageRouteSystem manageRouteSystem = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<ManageRouteSystem>();
-            return manageRouteSystem.GetRouteRuleInfo(transportType, routeId);
+            return manageRouteSystem.GetRouteRuleInfo(routeEntity);
         }
 
-        public static (int, string)[] getRouteRuleNames()
+        /// <summary>
+        /// Returns all available route rule names.
+        /// </summary>
+        public static (int, string)[] GetRouteRuleNames()
         {
-            ManageRouteSystem manageRouteSystem = World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<ManageRouteSystem>();
-            return manageRouteSystem.getRouteRuleNames();
+            return manageRouteSystem.GetRouteRuleNames();
         }
-
     }
 }
