@@ -194,7 +194,7 @@ namespace SmartTransportation
 
                 if (EntityManager.TryGetComponent<RouteRule>(trans, out routeRule))
                 {
-                    if(routeRule.disabled)
+                    if(routeRule.customRule== 0)
                     {
                         if (Mod.m_Setting.debug)
                         {

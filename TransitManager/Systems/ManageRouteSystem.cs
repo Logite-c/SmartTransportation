@@ -13,6 +13,7 @@ using SmartTransportation.Components;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Unity.Collections;
@@ -24,6 +25,21 @@ namespace SmartTransportation.Bridge
     {
         private EntityQuery entityQuery;
         private bool firstUpdate = false;
+
+        private static readonly Dictionary<int, string> RuleNames = new()
+        {
+            { -1, "Disabled" },
+            { (int)TransportType.Bus, TransportType.Bus.ToString()},
+            { (int)TransportType.Train, TransportType.Train.ToString()},
+            { (int)TransportType.Tram, TransportType.Tram.ToString()},
+            { (int)TransportType.Subway, TransportType.Subway.ToString()},
+            { 51, Mod.m_Setting.name_Custom1 },
+            { 52, Mod.m_Setting.name_Custom2 },
+            { 53, Mod.m_Setting.name_Custom3 },
+            { 54, Mod.m_Setting.name_Custom4 },
+            { 55, Mod.m_Setting.name_Custom5 },
+        };
+
 
         protected override void OnCreate()
         {
@@ -69,11 +85,11 @@ namespace SmartTransportation.Bridge
             return Entity.Null; // Not found
         }
 
-        public void SetRouteRule(Entity routeEntity, int routeRuleId, bool disable)
+        public void SetRouteRule(Entity routeEntity, int routeRuleId)
         {
-            var routeRule = new RouteRule(routeRuleId, disable);
+            var routeRule = new RouteRule(routeRuleId);
 
-            Mod.log.Info($"RouteEntity: {routeEntity}");
+            //Mod.log.Info($"RouteEntity: {routeEntity}");
             if (EntityManager.HasComponent<RouteRule>(routeEntity))
             {
                 EntityManager.SetComponentData(routeEntity, routeRule);
@@ -84,42 +100,103 @@ namespace SmartTransportation.Bridge
             }
         }
 
-        public (int customRuleId, bool isDisabled) GetRouteRuleInfo(Entity routeEntity)
+        public (int, string) GetRouteRule(Entity routeEntity)
         {
+            int ruleId = -1;
+            // First, try to get a custom rule from the RouteRule component
             if (EntityManager.TryGetComponent<RouteRule>(routeEntity, out RouteRule routeRule))
             {
-                return (routeRule.customRule, routeRule.disabled);
-            }
-            else
+                ruleId = routeRule.customRule;
+            } else
             {
-                return (0, false); // Default rule ID and not disabled
+                // Try to get prefab info for transport type fallback
+                if (EntityManager.TryGetComponent<PrefabRef>(routeEntity, out PrefabRef prefab))
+                {
+                    var transportLineData = EntityManager.GetComponentData<TransportLineData>(prefab.m_Prefab);
+                    TransportType transportType = transportLineData.m_TransportType;
+
+                    // Check if this transport type is disabled in settings
+                    bool isDisabled = transportType switch
+                    {
+                        TransportType.Bus => Mod.m_Setting.disable_bus,
+                        TransportType.Tram => Mod.m_Setting.disable_Tram,
+                        TransportType.Subway => Mod.m_Setting.disable_Subway,
+                        TransportType.Train => Mod.m_Setting.disable_Train,
+                        _ => true
+                    };
+
+                    if (!isDisabled)
+                    {
+                        int defaultId = (int)transportType;
+                        string defaultName = RuleNames.TryGetValue(defaultId, out var name) ? name : transportType.ToString();
+
+                        return (defaultId, defaultName);
+                    }
+                }
+            }
+
+            if (RuleNames.TryGetValue(ruleId, out var ruleName))
+            {
+                return (ruleId, ruleName);
+            } else
+            {
+                return default;
             }
         }
 
-        public (int, string)[] GetRouteRuleNames()
+
+
+        public (int, string)[] GetRouteRules(Entity routeEntity)
         {
-            return new (int, string)[]
+            if (!EntityManager.TryGetComponent<PrefabRef>(routeEntity, out PrefabRef prefab))
+                return Array.Empty<(int, string)>(); // Invalid route, return empty
+
+            if (!EntityManager.HasComponent<TransportLineData>(prefab.m_Prefab))
+                return Array.Empty<(int, string)>(); // No transport data
+
+            TransportLineData transportLineData = EntityManager.GetComponentData<TransportLineData>(prefab.m_Prefab);
+            TransportType transportType = transportLineData.m_TransportType;
+
+            // Check if this transport type is disabled
+            bool isDisabled = transportType switch
             {
-                (0, "No Custom Rule"),
-                (1, Mod.m_Setting.name_Custom1),
-                (2, Mod.m_Setting.name_Custom2),
-                (3, Mod.m_Setting.name_Custom3),
-                (4, Mod.m_Setting.name_Custom4),
-                (5, Mod.m_Setting.name_Custom5)
+                TransportType.Bus => Mod.m_Setting.disable_bus,
+                TransportType.Tram => Mod.m_Setting.disable_Tram,
+                TransportType.Subway => Mod.m_Setting.disable_Subway,
+                TransportType.Train => Mod.m_Setting.disable_Train,
+                _ => true
             };
+
+            // Build a list of valid rule entries (could be filtered by type if needed)
+            var rules = RuleNames
+                .Where(kv => kv.Key == -1 || kv.Key == (int)transportType || (kv.Key >= 51))
+                .OrderBy(kv => kv.Key)
+                .Select(kv => (kv.Key, kv.Value))
+                .ToArray();
+
+            if (isDisabled)
+            {
+                rules = RuleNames
+                .Where(kv => kv.Key == -1)
+                .OrderBy(kv => kv.Key)
+                .Select(kv => (kv.Key, kv.Value))
+                .ToArray();
+            }
+
+            return rules;
         }
 
 
         protected override void OnUpdate()
         {
             //Entity routeEntity = GetRouteEntityFromId(2, TransportType.Bus);
-            //SetRouteRule(routeEntity, 1, true);
+            ////SetRouteRule(routeEntity, 1);
             //Mod.log.Info($"SetRouteRule set");
             //if (firstUpdate)
             //{
-            //    Mod.log.Info($"GetRouteRuleInfo: {GetRouteRuleInfo(routeEntity)}");
+            //    Mod.log.Info($"GetRouteRuleInfo: {GetRouteRule(routeEntity)}");
             //
-            //    var routeNames = GetRouteRuleNames();
+            //    var routeNames = GetRouteRules(routeEntity);
             //    foreach (var (id, name) in routeNames)
             //    {
             //        Mod.log.Info($"Route ID: {id}, Name: {name}");

@@ -29,25 +29,25 @@ namespace SmartTransportation.Bridge
         /// <summary>
         /// Sets a rule for a given transport route.
         /// </summary>
-        public static void SetRouteRule(Entity routeEntity, int routeRuleId, bool disable)
+        public static void SetRouteRule(Entity routeEntity, int routeRuleId)
         {
-            manageRouteSystem.SetRouteRule(routeEntity, routeRuleId, disable);
+            manageRouteSystem.SetRouteRule(routeEntity, routeRuleId);
         }
 
         /// <summary>
         /// Gets the rule info for a given route.
         /// </summary>
-        public static (int CustomRuleId, bool IsDisabled) GetRouteRuleInfo(Entity routeEntity)
+        public static (int, string) GetRouteRule(Entity routeEntity)
         {
-            return manageRouteSystem.GetRouteRuleInfo(routeEntity);
+            return manageRouteSystem.GetRouteRule(routeEntity);
         }
 
         /// <summary>
         /// Returns all available route rule names.
         /// </summary>
-        public static (int, string)[] GetRouteRuleNames()
+        public static (int, string)[] GetRouteRules(Entity routeEntity)
         {
-            return manageRouteSystem.GetRouteRuleNames();
+            return manageRouteSystem.GetRouteRules(routeEntity);
         }
     }
 }
