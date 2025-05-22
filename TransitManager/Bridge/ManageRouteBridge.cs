@@ -1,5 +1,6 @@
 ﻿using Colossal.PSI.Common;
 using Game;
+using Game.City;
 using Game.Events;
 using Game.Objects;
 using Game.Prefabs;
@@ -21,9 +22,9 @@ namespace SmartTransportation.Bridge
 {
     public static class ManageRouteBridge
     {
-        private static readonly ManageRouteSystem manageRouteSystem =
-            World.DefaultGameObjectInjectionWorld?.GetOrCreateSystemManaged<ManageRouteSystem>()
-            ?? throw new InvalidOperationException("ManageRouteSystem could not be initialized.");
+        private static ManageRouteSystem manageRouteSystem; 
+
+        public static ManageRouteSystem GetManageRouteSystem(Entity e) => manageRouteSystem ??= World.DefaultGameObjectInjectionWorld?.GetOrCreateSystemManaged<ManageRouteSystem>();
 
         /// <summary>
         /// Sets a rule for a given transport route.
