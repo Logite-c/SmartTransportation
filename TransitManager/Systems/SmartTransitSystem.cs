@@ -152,6 +152,18 @@ namespace SmartTransportation
             return -1f;
         }
 
+        private static (int occupancy, int stdTicket, int maxInc, int maxDec, int maxAdj, int minAdj) GetSettingsForRule(int ruleId, Setting setting)
+        {
+            return ruleId switch
+            {
+                51 => (setting.target_occupancy_Custom1, setting.standard_ticket_Custom1, setting.max_ticket_increase_Custom1, setting.max_ticket_discount_Custom1, setting.max_vahicles_adj_Custom1, setting.min_vahicles_adj_Custom1),
+                52 => (setting.target_occupancy_Custom2, setting.standard_ticket_Custom2, setting.max_ticket_increase_Custom2, setting.max_ticket_discount_Custom2, setting.max_vahicles_adj_Custom2, setting.min_vahicles_adj_Custom2),
+                53 => (setting.target_occupancy_Custom3, setting.standard_ticket_Custom3, setting.max_ticket_increase_Custom3, setting.max_ticket_discount_Custom3, setting.max_vahicles_adj_Custom3, setting.min_vahicles_adj_Custom3),
+                54 => (setting.target_occupancy_Custom4, setting.standard_ticket_Custom4, setting.max_ticket_increase_Custom4, setting.max_ticket_discount_Custom4, setting.max_vahicles_adj_Custom4, setting.min_vahicles_adj_Custom4),
+                55 => (setting.target_occupancy_Custom5, setting.standard_ticket_Custom5, setting.max_ticket_increase_Custom5, setting.max_ticket_discount_Custom5, setting.max_vahicles_adj_Custom5, setting.min_vahicles_adj_Custom5),
+                _ => (0, 0, 0, 0, 0, 0)
+            };
+        }
 
 
 
@@ -191,49 +203,50 @@ namespace SmartTransportation
                 RouteRule routeRule;
 
                 transportLineData = EntityManager.GetComponentData<TransportLineData>(prefab.m_Prefab);
+                bool hasCustomRule = EntityManager.TryGetComponent<RouteRule>(trans, out routeRule);
 
-                if (EntityManager.TryGetComponent<RouteRule>(trans, out routeRule))
+                if(hasCustomRule && routeRule.customRule== -1)
+                 {
+                     if (Mod.m_Setting.debug)
+                     {
+                         Mod.log.Info($"Transport Type: {transportLineData.m_TransportType}, Route Number: {routeNumber.m_Number} - Disabled");
+                     }
+                     continue;
+                 } 
+                else
                 {
-                    if(routeRule.customRule== 0)
+                    //Routes with custom rules will not be disabled by the settings
+                    //If some modes are disabled, continue to the next transport line
+                    switch (transportLineData.m_TransportType)
                     {
-                        if (Mod.m_Setting.debug)
-                        {
-                            Mod.log.Info($"Transport Type: {transportLineData.m_TransportType}, Route Number: {routeNumber.m_Number} - Disabled");
-                        }
-                        continue;
+                        case TransportType.Bus:
+                            if (Mod.m_Setting.disable_bus)
+                            {
+                                continue;
+                            }
+                            break;
+                        case TransportType.Tram:
+                            if (Mod.m_Setting.disable_Tram)
+                            {
+                                continue;
+                            }
+                            break;
+                        case TransportType.Subway:
+                            if (Mod.m_Setting.disable_Subway)
+                            {
+                                continue;
+                            }
+                            break;
+                        case TransportType.Train:
+                            if (Mod.m_Setting.disable_Train)
+                            {
+                                continue;
+                            }
+                            break;
+                        default:
+                            break;
                     }
-                }
-
-                //If some modes are disabled, continue to the next transport line
-                switch (transportLineData.m_TransportType)
-                {
-                    case TransportType.Bus:
-                        if(Mod.m_Setting.disable_bus)
-                        {
-                            continue;
-                        }
-                        break;
-                    case TransportType.Tram:
-                        if (Mod.m_Setting.disable_Tram)
-                        {
-                            continue;
-                        }
-                        break;
-                    case TransportType.Subway:
-                        if (Mod.m_Setting.disable_Subway)
-                        {
-                            continue;
-                        }
-                        break;
-                    case TransportType.Train:
-                        if (Mod.m_Setting.disable_Train)
-                        {
-                            continue;
-                        }
-                        break;
-                    default:
-                        break;
-                }
+                }   
 
                 if (EntityManager.TryGetComponent<VehicleModel>(trans, out vehicleModel))
                 {
@@ -323,43 +336,57 @@ namespace SmartTransportation
                         int max_increase = 0;
                         int standard_ticket = 0;
 
-                        switch (transportLineData.m_TransportType)
+                        if (hasCustomRule && routeRule.customRule >= 51)
                         {
-                            case TransportType.Bus:
-                                occupancy = Mod.m_Setting.target_occupancy_bus;
-                                max_discount = Mod.m_Setting.max_ticket_discount_bus;
-                                max_increase = Mod.m_Setting.max_ticket_increase_bus;
-                                maxVehicles = (int)Math.Round(maxVehicles*(1 + Mod.m_Setting.max_vahicles_adj_bus / 100f));
-                                minVehicles = (int)Math.Round(minVehicles*(1 - Mod.m_Setting.min_vahicles_adj_bus / 100f));
-                                standard_ticket = Mod.m_Setting.standard_ticket_bus;
-                                break;
-                            case TransportType.Tram:
-                                occupancy = Mod.m_Setting.target_occupancy_Tram;
-                                max_discount = Mod.m_Setting.max_ticket_discount_Tram;
-                                max_increase = Mod.m_Setting.max_ticket_increase_Tram;
-                                maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Tram / 100f));
-                                minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Tram / 100f));
-                                standard_ticket = Mod.m_Setting.standard_ticket_Tram;
-                                break;
-                            case TransportType.Subway:
-                                occupancy = Mod.m_Setting.target_occupancy_Subway;
-                                max_discount = Mod.m_Setting.max_ticket_discount_Subway;
-                                max_increase = Mod.m_Setting.max_ticket_increase_Subway;
-                                maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Subway / 100f));
-                                minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Subway / 100f));
-                                standard_ticket = Mod.m_Setting.standard_ticket_Subway;
-                                break;
-                            case TransportType.Train:
-                                occupancy = Mod.m_Setting.target_occupancy_Train;
-                                max_discount = Mod.m_Setting.max_ticket_discount_Train;
-                                max_increase = Mod.m_Setting.max_ticket_increase_Train;
-                                minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Train / 100f));
-                                maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Train / 100f));
-                                standard_ticket = Mod.m_Setting.standard_ticket_Train;
-                                break;
-                            default:
-                                continue;
+                            int maxVehiclesAdj = 0;
+                            int minVehiclesAdj = 0;
+                            (occupancy, standard_ticket, max_increase, max_discount, maxVehiclesAdj, minVehiclesAdj) = GetSettingsForRule(routeRule.customRule, Mod.m_Setting);
+                            maxVehicles = (int)Math.Round(maxVehicles * (1 + maxVehiclesAdj / 100f));
+                            minVehicles = (int)Math.Round(minVehicles * (1 - minVehiclesAdj / 100f));
+
+                            //Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Custom Rule:{routeRule.customRule}, Standard Ticket Price:{standard_ticket}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Empty Vehicles:{emptyVehicles}, Passengers:{passengers}, Waiting Passengers:{waiting}, Occupancy:{capacity}, Target Occupancy:{occupancy/100f}");
                         }
+                        else
+                        {
+                            switch (transportLineData.m_TransportType)
+                            {
+                                case TransportType.Bus:
+                                    occupancy = Mod.m_Setting.target_occupancy_bus;
+                                    max_discount = Mod.m_Setting.max_ticket_discount_bus;
+                                    max_increase = Mod.m_Setting.max_ticket_increase_bus;
+                                    maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_bus / 100f));
+                                    minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_bus / 100f));
+                                    standard_ticket = Mod.m_Setting.standard_ticket_bus;
+                                    break;
+                                case TransportType.Tram:
+                                    occupancy = Mod.m_Setting.target_occupancy_Tram;
+                                    max_discount = Mod.m_Setting.max_ticket_discount_Tram;
+                                    max_increase = Mod.m_Setting.max_ticket_increase_Tram;
+                                    maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Tram / 100f));
+                                    minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Tram / 100f));
+                                    standard_ticket = Mod.m_Setting.standard_ticket_Tram;
+                                    break;
+                                case TransportType.Subway:
+                                    occupancy = Mod.m_Setting.target_occupancy_Subway;
+                                    max_discount = Mod.m_Setting.max_ticket_discount_Subway;
+                                    max_increase = Mod.m_Setting.max_ticket_increase_Subway;
+                                    maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Subway / 100f));
+                                    minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Subway / 100f));
+                                    standard_ticket = Mod.m_Setting.standard_ticket_Subway;
+                                    break;
+                                case TransportType.Train:
+                                    occupancy = Mod.m_Setting.target_occupancy_Train;
+                                    max_discount = Mod.m_Setting.max_ticket_discount_Train;
+                                    max_increase = Mod.m_Setting.max_ticket_increase_Train;
+                                    minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Train / 100f));
+                                    maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Train / 100f));
+                                    standard_ticket = Mod.m_Setting.standard_ticket_Train;
+                                    break;
+                                default:
+                                    continue;
+                            }
+                        }
+                        ticketPrice = standard_ticket;
 
                         if (minVehicles < 1)
                         {
@@ -431,9 +458,9 @@ namespace SmartTransportation
                         //m_PoliciesUISystem.SetPolicy(trans, m_VehicleCountPolicy, true, CalculateAdjustmentFromVehicleCount(setVehicles, transportLineData.m_DefaultVehicleInterval, stableDuration, buffer, policySliderData));
                         m_PoliciesUISystem.SetPolicy(trans, m_VehicleCountPolicy, true, vehicleInterval);
 
-                        if (Mod.m_Setting.debug && (oldVehicles != setVehicles || transportLine.m_TicketPrice != oldTicketPrice))
+                        if (Mod.m_Setting.debug && (oldVehicles != setVehicles || ticketPrice != oldTicketPrice))
                         {
-                            Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Ticket Price:{transportLine.m_TicketPrice}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Empty Vehicles:{emptyVehicles}, Passengers:{passengers}, Waiting Passengers:{waiting}, Occupancy:{capacity}, Target Occupancy:{occupancy/100f}");
+                            Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Ticket Price:{ticketPrice}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Empty Vehicles:{emptyVehicles}, Passengers:{passengers}, Waiting Passengers:{waiting}, Occupancy:{capacity}, Target Occupancy:{occupancy/100f}");
                         }
                     }
                 }

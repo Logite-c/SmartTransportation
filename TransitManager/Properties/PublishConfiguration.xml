@@ -40,14 +40,14 @@ The min/max vehicle settings were based on the work developed by SonnyX on the T
 	<!--Link to the forum post where the mod can be discussed-->
 	<ForumLink Value="https://forum.paradoxplaza.com/forum/threads/smart-transportation-mod.1704128/" />
 	<!--Version of the mod-->
-	<ModVersion Value="0.3.7" />
+	<ModVersion Value="0.4" />
 	<!--Recommended version of the base game to use the mod-->
-	<GameVersion Value="1.2.*" />
+	<GameVersion Value="1.3.*" />
 	<!--Dependency for the mod, can be set multiple times-->
 	<Dependency Id="" />
 	<ChangeLog>
-* Updated for version 1.2.5f1
-* Removed Colossal.UI assembly reference
+* Implemented custom rules and inegrated with Extended Transportation Manager Mod
+* Fixed ticket price bug - mod was using default game prices ometimes instead of modded prices
 	</ChangeLog>
 	<!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon-->
 	<ExternalLink Type="github" Url="https://github.com/ruzbeh0/SmartTransportation" />

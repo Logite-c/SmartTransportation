@@ -1,4 +1,5 @@
 ﻿
+using Unity.Collections;
 using Unity.Entities;
 
 namespace SmartTransportation.Bridge
@@ -31,6 +32,26 @@ namespace SmartTransportation.Bridge
         public static (int, string)[] GetRouteRules(Entity routeEntity)
         {
             return ManageRouteSystem.GetRouteRules(routeEntity);
+        }
+
+        public static (int, FixedString64Bytes, int, int, int, int, int, int)[] GetCustomRules()
+        {
+            return ManageRouteSystem.GetCustomRules();
+        }
+
+        public static void SetCustomRule(int ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+        {
+            ManageRouteSystem.SetCustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj);
+        }
+
+        public static void RemoveCustomRule(int ruleId)
+        {
+            ManageRouteSystem.RemoveCustomRule(ruleId);
+        }
+
+        public static (FixedString64Bytes, int, int, int, int, int, int) GetCustomRule(int ruleId)
+        {
+            return ManageRouteSystem.GetCustomRule(ruleId);
         }
     }
 }

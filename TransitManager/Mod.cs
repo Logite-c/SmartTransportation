@@ -53,7 +53,7 @@ namespace SmartTransportation
             World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<Game.Policies.ModifiedSystem>().Enabled = false;
 
 
-            updateSystem.UpdateAt<ModifiedSystem>(SystemUpdatePhase.Modification4);
+            updateSystem.UpdateAt<SmartTransportation.Systems.ModifiedSystem>(SystemUpdatePhase.Modification4);
             updateSystem.UpdateAt<SmartTransitSystem>(SystemUpdatePhase.GameSimulation);
             //updateSystem.UpdateAt<SmartTaxiSystem>(SystemUpdatePhase.GameSimulation);
 

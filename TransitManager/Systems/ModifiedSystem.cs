@@ -15,6 +15,7 @@ using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Entities.Internal;
 using Unity.Jobs;
 using UnityEngine.Scripting;
 using PolicyEventInfo = Game.Policies.ModifiedSystem.PolicyEventInfo;
@@ -340,7 +341,7 @@ public partial class ModifiedSystem : GameSystemBase
         m_BuildingModifierRefreshData = new BuildingModifierInitializeSystem.BuildingModifierRefreshData(this);
         m_RouteModifierRefreshData = new RouteModifierInitializeSystem.RouteModifierRefreshData(this);
         m_CityModifierRefreshData = new CityModifierUpdateSystem.CityModifierRefreshData(this);
-        m_EventQuery = GetEntityQuery(ComponentType.ReadOnly<Event>(), ComponentType.ReadOnly<Modify>());
+        this.m_EventQuery = this.GetEntityQuery(ComponentType.ReadOnly<Event>(), ComponentType.ReadOnly<Modify>());
         m_EffectProviderQuery = GetEntityQuery(ComponentType.ReadOnly<CityEffectProvider>(), ComponentType.Exclude<Deleted>(), ComponentType.Exclude<Destroyed>(), ComponentType.Exclude<Temp>());
         m_ModificationBarrier = World.GetOrCreateSystemManaged<ModificationBarrier4>();
         m_TriggerSystem = World.GetOrCreateSystemManaged<TriggerSystem>();
@@ -357,19 +358,7 @@ public partial class ModifiedSystem : GameSystemBase
         m_RouteModifierRefreshData.Update(this);
         m_CityModifierRefreshData.Update(this);
         NativeQueue<TriggerAction> nativeQueue = m_TriggerSystem.Enabled ? m_TriggerSystem.CreateActionBuffer() : new NativeQueue<TriggerAction>(Allocator.TempJob);
-        __TypeHandle.__Game_Policies_Policy_RW_BufferLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_City_CityModifier_RW_BufferLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_Routes_RouteModifier_RW_BufferLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_Buildings_BuildingModifier_RW_BufferLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_Areas_DistrictModifier_RW_BufferLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_City_City_RW_ComponentLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_Routes_Route_RW_ComponentLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_Buildings_Extension_RW_ComponentLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_Buildings_Building_RW_ComponentLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_Areas_District_RW_ComponentLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_Buildings_ServiceUpgrade_RO_ComponentLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_Common_Owner_RO_ComponentLookup.Update(ref CheckedStateRef);
-        __TypeHandle.__Game_Policies_Modify_RO_ComponentTypeHandle.Update(ref CheckedStateRef);
+
         ModifyPolicyJob jobData = new()
         {
             m_DistrictModifierRefreshData = m_DistrictModifierRefreshData,
@@ -377,20 +366,20 @@ public partial class ModifiedSystem : GameSystemBase
             m_RouteModifierRefreshData = m_RouteModifierRefreshData,
             m_CityModifierRefreshData = m_CityModifierRefreshData,
             m_EffectProviderChunks = effectProviderChunks,
-            m_ModifyType = __TypeHandle.__Game_Policies_Modify_RO_ComponentTypeHandle,
-            m_OwnerData = __TypeHandle.__Game_Common_Owner_RO_ComponentLookup,
-            m_ServiceUpgradeData = __TypeHandle.__Game_Buildings_ServiceUpgrade_RO_ComponentLookup,
+            m_ModifyType = InternalCompilerInterface.GetComponentTypeHandle<Modify>(ref this.__TypeHandle.__Game_Policies_Modify_RO_ComponentTypeHandle, ref this.CheckedStateRef),
+            m_OwnerData = InternalCompilerInterface.GetComponentLookup<Owner>(ref this.__TypeHandle.__Game_Common_Owner_RO_ComponentLookup, ref this.CheckedStateRef),
+            m_ServiceUpgradeData = InternalCompilerInterface.GetComponentLookup<Game.Buildings.ServiceUpgrade>(ref this.__TypeHandle.__Game_Buildings_ServiceUpgrade_RO_ComponentLookup, ref this.CheckedStateRef),
             m_TriggerBuffer = nativeQueue.AsParallelWriter(),
-            m_DistrictData = __TypeHandle.__Game_Areas_District_RW_ComponentLookup,
-            m_BuildingData = __TypeHandle.__Game_Buildings_Building_RW_ComponentLookup,
-            m_ExtensionData = __TypeHandle.__Game_Buildings_Extension_RW_ComponentLookup,
-            m_RouteData = __TypeHandle.__Game_Routes_Route_RW_ComponentLookup,
-            m_CityData = __TypeHandle.__Game_City_City_RW_ComponentLookup,
-            m_DistrictModifiers = __TypeHandle.__Game_Areas_DistrictModifier_RW_BufferLookup,
-            m_BuildingModifiers = __TypeHandle.__Game_Buildings_BuildingModifier_RW_BufferLookup,
-            m_RouteModifiers = __TypeHandle.__Game_Routes_RouteModifier_RW_BufferLookup,
-            m_CityModifiers = __TypeHandle.__Game_City_CityModifier_RW_BufferLookup,
-            m_Policies = __TypeHandle.__Game_Policies_Policy_RW_BufferLookup,
+            m_DistrictData = InternalCompilerInterface.GetComponentLookup<District>(ref this.__TypeHandle.__Game_Areas_District_RW_ComponentLookup, ref this.CheckedStateRef),
+            m_BuildingData = InternalCompilerInterface.GetComponentLookup<Building>(ref this.__TypeHandle.__Game_Buildings_Building_RW_ComponentLookup, ref this.CheckedStateRef),
+            m_ExtensionData = InternalCompilerInterface.GetComponentLookup<Extension>(ref this.__TypeHandle.__Game_Buildings_Extension_RW_ComponentLookup, ref this.CheckedStateRef),
+            m_RouteData = InternalCompilerInterface.GetComponentLookup<Route>(ref this.__TypeHandle.__Game_Routes_Route_RW_ComponentLookup, ref this.CheckedStateRef),
+            m_CityData = InternalCompilerInterface.GetComponentLookup<Game.City.City>(ref this.__TypeHandle.__Game_City_City_RW_ComponentLookup, ref this.CheckedStateRef),
+            m_DistrictModifiers = InternalCompilerInterface.GetBufferLookup<DistrictModifier>(ref this.__TypeHandle.__Game_Areas_DistrictModifier_RW_BufferLookup, ref this.CheckedStateRef),
+            m_BuildingModifiers = InternalCompilerInterface.GetBufferLookup<BuildingModifier>(ref this.__TypeHandle.__Game_Buildings_BuildingModifier_RW_BufferLookup, ref this.CheckedStateRef),
+            m_RouteModifiers = InternalCompilerInterface.GetBufferLookup<RouteModifier>(ref this.__TypeHandle.__Game_Routes_RouteModifier_RW_BufferLookup, ref this.CheckedStateRef),
+            m_CityModifiers = InternalCompilerInterface.GetBufferLookup<CityModifier>(ref this.__TypeHandle.__Game_City_CityModifier_RW_BufferLookup, ref this.CheckedStateRef),
+            m_Policies = InternalCompilerInterface.GetBufferLookup<Policy>(ref this.__TypeHandle.__Game_Policies_Policy_RW_BufferLookup, ref this.CheckedStateRef),
             m_PolicyEventInfos = m_PolicyEventInfos.AsParallelWriter(),
             m_CommandBuffer = m_ModificationBarrier.CreateCommandBuffer()
         };
@@ -409,7 +398,7 @@ public partial class ModifiedSystem : GameSystemBase
         jobHandle.Complete();
         while (m_PolicyEventInfos.Count > 0)
         {
-            Telemetry.Policy(m_PolicyEventInfos.Dequeue());
+            Telemetry.Policy(this.m_PolicyEventInfos.Dequeue());
         }
     }
 
@@ -417,6 +406,12 @@ public partial class ModifiedSystem : GameSystemBase
     protected override void OnDestroy()
     {
         m_PolicyEventInfos.Dispose();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void __AssignQueries(ref SystemState state)
+    {
+        new EntityQueryBuilder((AllocatorManager.AllocatorHandle)Allocator.Temp).Dispose();
     }
 
     protected override void OnCreateForCompiler()
