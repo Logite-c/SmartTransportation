@@ -274,37 +274,37 @@ namespace SmartTransportation.Bridge
 
             //this.Enabled = false;
 
-            if (!firstUpdate)
-            {
-                // Test adding/setting custom rules
-                SetCustomRule(101, "Rule One", 45, 10, 25, 15, 20, 5);
-                SetCustomRule(102, "Rule Two", 60, 12, 30, 10, 10, 10);
-                SetCustomRule(103, "Rule Three", 50, 11, 20, 20, 15, 8);
-
-                Mod.log.Info("=== All Custom Rules After Adding ===");
-                foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in GetCustomRules())
-                {
-                    Mod.log.Info($"ID: {id}, Name: {name}, Occupancy: {occ}, StdTicket: {ticket}, MaxInc: {inc}, MaxDec: {dec}, MaxAdj: {maxAdj}, MinAdj: {minAdj}");
-                }
-
-                // Test fetching a specific rule
-                var (ruleName, occ2, ticket2, inc2, dec2, maxAdj2, minAdj2) = GetCustomRule(102);
-                Mod.log.Info($"--- Retrieved Rule 102 ---");
-                Mod.log.Info($"Name: {ruleName}, Occupancy: {occ2}, StdTicket: {ticket2}, MaxInc: {inc2}, MaxDec: {dec2}, MaxAdj: {maxAdj2}, MinAdj: {minAdj2}");
-
-                // Test removing a rule
-                RemoveCustomRule(101);
-
-                Mod.log.Info("=== All Custom Rules After Removing Rule 101 ===");
-                foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in GetCustomRules())
-                {
-                    Mod.log.Info($"ID: {id}, Name: {name}, Occupancy: {occ}, StdTicket: {ticket}, MaxInc: {inc}, MaxDec: {dec}, MaxAdj: {maxAdj}, MinAdj: {minAdj}");
-                }
-
-                firstUpdate = true;
-            }
-
-            this.Enabled = false; // Prevent further updates
+            //if (!firstUpdate)
+            //{
+            //    // Test adding/setting custom rules
+            //    SetCustomRule(101, "Rule One", 45, 10, 25, 15, 20, 5);
+            //    SetCustomRule(102, "Rule Two", 60, 12, 30, 10, 10, 10);
+            //    SetCustomRule(103, "Rule Three", 50, 11, 20, 20, 15, 8);
+            //
+            //    Mod.log.Info("=== All Custom Rules After Adding ===");
+            //    foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in GetCustomRules())
+            //    {
+            //        Mod.log.Info($"ID: {id}, Name: {name}, Occupancy: {occ}, StdTicket: {ticket}, MaxInc: {inc}, MaxDec: {dec}, MaxAdj: {maxAdj}, MinAdj: {minAdj}");
+            //    }
+            //
+            //    // Test fetching a specific rule
+            //    var (ruleName, occ2, ticket2, inc2, dec2, maxAdj2, minAdj2) = GetCustomRule(102);
+            //    Mod.log.Info($"--- Retrieved Rule 102 ---");
+            //    Mod.log.Info($"Name: {ruleName}, Occupancy: {occ2}, StdTicket: {ticket2}, MaxInc: {inc2}, MaxDec: {dec2}, MaxAdj: {maxAdj2}, MinAdj: {minAdj2}");
+            //
+            //    // Test removing a rule
+            //    RemoveCustomRule(101);
+            //
+            //    Mod.log.Info("=== All Custom Rules After Removing Rule 101 ===");
+            //    foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in GetCustomRules())
+            //    {
+            //        Mod.log.Info($"ID: {id}, Name: {name}, Occupancy: {occ}, StdTicket: {ticket}, MaxInc: {inc}, MaxDec: {dec}, MaxAdj: {maxAdj}, MinAdj: {minAdj}");
+            //    }
+            //
+            //    firstUpdate = true;
+            //}
+            //
+            //this.Enabled = false; // Prevent further updates
         }
 
     }
