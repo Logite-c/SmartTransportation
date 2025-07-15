@@ -1,33 +1,35 @@
-﻿using Game;
-using Game.Prefabs;
-using Game.Routes;
-using System;
-using System.Collections.Generic;
-using Unity.Collections;
-using Unity.Entities;
+﻿using Colossal.Entities;
 using Colossal.Serialization.Entities;
-using Game.Companies;
-using Colossal.Entities;
-using Game.Common;
-using Game.Vehicles;
-using Game.Prefabs.Effects;
-using UnityEngine.Rendering;
-using Game.Simulation;
-using System.ComponentModel.Design;
+using Game;
 using Game.Agents;
 using Game.Buildings;
+using Game.Common;
+using Game.Companies;
+using Game.Pathfind;
+using Game.Policies;
+using Game.Prefabs;
+using Game.Prefabs.Effects;
+using Game.Routes;
+using Game.Simulation;
+using Game.UI.InGame;
+using Game.Vehicles;
+using SmartTransportation.Bridge;
+using SmartTransportation.Components;
+using SmartTransportation.Systems;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.Design;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Entities.UniversalDelegates;
+using Unity.Mathematics;
+using UnityEngine.Rendering;
+using static Game.Input.UIInputActionCollection;
+using static Game.Prefabs.TriggerPrefabData;
+using static Game.Rendering.OverlayRenderSystem;
 using static Game.Rendering.Utilities.State;
 using static Game.UI.InGame.VehiclesSection;
-using Game.Policies;
-using static Game.Input.UIInputActionCollection;
 using static UnityEngine.GraphicsBuffer;
-using Game.UI.InGame;
-using static Game.Rendering.OverlayRenderSystem;
-using Game.Pathfind;
-using Unity.Mathematics;
-using SmartTransportation.Systems;
-using static Game.Prefabs.TriggerPrefabData;
-using SmartTransportation.Components;
 using RouteModifierInitializeSystem = SmartTransportation.Systems.RouteModifierInitializeSystem;
 
 namespace SmartTransportation
@@ -152,19 +154,6 @@ namespace SmartTransportation
             return -1f;
         }
 
-        private static (int occupancy, int stdTicket, int maxInc, int maxDec, int maxAdj, int minAdj) GetSettingsForRule(int ruleId, Setting setting)
-        {
-            return ruleId switch
-            {
-                51 => (setting.target_occupancy_Custom1, setting.standard_ticket_Custom1, setting.max_ticket_increase_Custom1, setting.max_ticket_discount_Custom1, setting.max_vahicles_adj_Custom1, setting.min_vahicles_adj_Custom1),
-                52 => (setting.target_occupancy_Custom2, setting.standard_ticket_Custom2, setting.max_ticket_increase_Custom2, setting.max_ticket_discount_Custom2, setting.max_vahicles_adj_Custom2, setting.min_vahicles_adj_Custom2),
-                53 => (setting.target_occupancy_Custom3, setting.standard_ticket_Custom3, setting.max_ticket_increase_Custom3, setting.max_ticket_discount_Custom3, setting.max_vahicles_adj_Custom3, setting.min_vahicles_adj_Custom3),
-                54 => (setting.target_occupancy_Custom4, setting.standard_ticket_Custom4, setting.max_ticket_increase_Custom4, setting.max_ticket_discount_Custom4, setting.max_vahicles_adj_Custom4, setting.min_vahicles_adj_Custom4),
-                55 => (setting.target_occupancy_Custom5, setting.standard_ticket_Custom5, setting.max_ticket_increase_Custom5, setting.max_ticket_discount_Custom5, setting.max_vahicles_adj_Custom5, setting.min_vahicles_adj_Custom5),
-                _ => (0, 0, 0, 0, 0, 0)
-            };
-        }
-
 
 
         protected override void OnUpdate()
@@ -180,6 +169,8 @@ namespace SmartTransportation
             });
 
             RequireForUpdate(_query);
+
+            ManageRouteSystem manageRouteSystem = this.World.GetOrCreateSystemManaged<ManageRouteSystem>();
 
             var transports = _query.ToEntityArray(Allocator.Temp);
             if(Mod.m_Setting.debug)
@@ -205,7 +196,7 @@ namespace SmartTransportation
                 transportLineData = EntityManager.GetComponentData<TransportLineData>(prefab.m_Prefab);
                 bool hasCustomRule = EntityManager.TryGetComponent<RouteRule>(trans, out routeRule);
 
-                if(hasCustomRule && routeRule.customRule== -1)
+                if(hasCustomRule && routeRule.customRule== default)
                  {
                      if (Mod.m_Setting.debug)
                      {
@@ -336,12 +327,13 @@ namespace SmartTransportation
                         int max_increase = 0;
                         int standard_ticket = 0;
 
-                        if (hasCustomRule && routeRule.customRule >= 51)
+                        if (hasCustomRule)
                         {
                             int maxVehiclesAdj = 0;
                             int minVehiclesAdj = 0;
-                            (occupancy, standard_ticket, max_increase, max_discount, maxVehiclesAdj, minVehiclesAdj) = GetSettingsForRule(routeRule.customRule, Mod.m_Setting);
-                            maxVehicles = (int)Math.Round(maxVehicles * (1 + maxVehiclesAdj / 100f));
+                            FixedString64Bytes name = default;
+                            
+                            (name, occupancy, standard_ticket, max_increase, max_discount, maxVehiclesAdj, minVehiclesAdj) = manageRouteSystem.GetCustomRule(routeRule.customRule);
                             minVehicles = (int)Math.Round(minVehicles * (1 - minVehiclesAdj / 100f));
 
                             //Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Custom Rule:{routeRule.customRule}, Standard Ticket Price:{standard_ticket}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Empty Vehicles:{emptyVehicles}, Passengers:{passengers}, Waiting Passengers:{waiting}, Occupancy:{capacity}, Target Occupancy:{occupancy/100f}");

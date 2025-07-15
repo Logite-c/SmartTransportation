@@ -11,14 +11,14 @@ namespace SmartTransportation.Components
 {
     public struct RouteRule : IComponentData, IQueryTypeParameter, ISerializable
     {
-        public int version = 1;
+        public int version = 2;
 
-        public RouteRule(int customRule)
+        public RouteRule(Colossal.Hash128 customRule)
         {
             this.customRule = customRule;
         }
 
-        public int customRule = default;
+        public Colossal.Hash128 customRule = default;
 
         public void Serialize<TWriter>(TWriter writer) where TWriter : IWriter
         {
@@ -29,7 +29,15 @@ namespace SmartTransportation.Components
         public void Deserialize<TReader>(TReader reader) where TReader : IReader
         {
             reader.Read(out version);
-            reader.Read(out customRule);
+            if (version < 2)
+            {
+                reader.Read(out int customRuleInt);
+                customRule = new Colossal.Hash128((uint)customRuleInt, 0, 0, 0); // customRule was an int in version 1
+            }
+            else
+            {
+                reader.Read(out customRule);
+            }
         }
     }
 }

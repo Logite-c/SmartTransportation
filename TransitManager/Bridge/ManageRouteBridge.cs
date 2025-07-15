@@ -13,7 +13,7 @@ namespace SmartTransportation.Bridge
         /// <summary>
         /// Sets a rule for a given transport route.
         /// </summary>
-        public static void SetRouteRule(Entity routeEntity, int routeRuleId)
+        public static void SetRouteRule(Entity routeEntity, Colossal.Hash128 routeRuleId)
         {
             ManageRouteSystem.SetRouteRule(routeEntity, routeRuleId);
         }
@@ -21,7 +21,7 @@ namespace SmartTransportation.Bridge
         /// <summary>
         /// Gets the rule info for a given route.
         /// </summary>
-        public static (int, string) GetRouteRule(Entity routeEntity)
+        public static (Colossal.Hash128, string) GetRouteRule(Entity routeEntity)
         {
             return ManageRouteSystem.GetRouteRule(routeEntity);
         }
@@ -29,22 +29,22 @@ namespace SmartTransportation.Bridge
         /// <summary>
         /// Returns all available route rule names.
         /// </summary>
-        public static (int, string)[] GetRouteRules(Entity routeEntity)
+        public static (Colossal.Hash128, string)[] GetRouteRules(Entity routeEntity)
         {
             return ManageRouteSystem.GetRouteRules(routeEntity);
         }
 
-        public static (Colossal.Hash128, FixedString64Bytes, int, int, int, int, int, int)[] GetCustomRules()
+        public static (Colossal.Hash128, string, int, int, int, int, int, int)[] GetCustomRules()
         {
             return ManageRouteSystem.GetCustomRules();
         }
 
-        public static void SetCustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+        public static void SetCustomRule(Colossal.Hash128 ruleId, string ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
         {
             ManageRouteSystem.SetCustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj);
         }
 
-        public static void AddCustomRule(FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+        public static void AddCustomRule(string ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
         {
             ManageRouteSystem.AddCustomRule(ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj);
         }
