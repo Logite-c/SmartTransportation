@@ -34,22 +34,27 @@ namespace SmartTransportation.Bridge
             return ManageRouteSystem.GetRouteRules(routeEntity);
         }
 
-        public static (int, FixedString64Bytes, int, int, int, int, int, int)[] GetCustomRules()
+        public static (Colossal.Hash128, FixedString64Bytes, int, int, int, int, int, int)[] GetCustomRules()
         {
             return ManageRouteSystem.GetCustomRules();
         }
 
-        public static void SetCustomRule(int ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+        public static void SetCustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
         {
             ManageRouteSystem.SetCustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj);
         }
 
-        public static void RemoveCustomRule(int ruleId)
+        public static void AddCustomRule(FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+        {
+            ManageRouteSystem.AddCustomRule(ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj);
+        }
+
+        public static void RemoveCustomRule(Colossal.Hash128 ruleId)
         {
             ManageRouteSystem.RemoveCustomRule(ruleId);
         }
 
-        public static (FixedString64Bytes, int, int, int, int, int, int) GetCustomRule(int ruleId)
+        public static (FixedString64Bytes, int, int, int, int, int, int) GetCustomRule(Colossal.Hash128 ruleId)
         {
             return ManageRouteSystem.GetCustomRule(ruleId);
         }

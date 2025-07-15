@@ -186,7 +186,7 @@ namespace SmartTransportation.Bridge
             return rules;
         }
 
-        public (FixedString64Bytes, int, int, int, int, int, int) GetCustomRule(int ruleId)
+        public (FixedString64Bytes, int, int, int, int, int, int) GetCustomRule(Colossal.Hash128 ruleId)
         {
             EntityQuery query = EntityManager.CreateEntityQuery(typeof(CustomRule));
             var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
@@ -203,27 +203,47 @@ namespace SmartTransportation.Bridge
         }
 
 
-        public void SetCustomRule(int ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+        public void SetCustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
         {
             EntityQuery query = EntityManager.CreateEntityQuery(typeof(CustomRule));
+            var entities = query.ToEntityArray(Allocator.Temp);
             var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
 
-            foreach (var rule in rules)
+            for (int i = 0; i < rules.Length; i++)
             {
-                if (rule.ruleId == ruleId)
+                if (rules[i].ruleId == ruleId)
                 {
-                    Entity entity = query.ToEntityArray(Allocator.Temp)[Array.IndexOf(rules.ToArray(), rule)];
-                    EntityManager.SetComponentData(entity, new CustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj));
+                    var updated = rules[i];
+                    updated.ruleName = ruleName;
+                    updated.occupancy = occupancy;
+                    updated.stdTicket = stdTicket;
+                    updated.maxTicketInc = maxTicketInc;
+                    updated.maxTicketDec = maxTicketDec;
+                    updated.maxVehAdj = maxVehAdj;
+                    updated.minVehAdj = minVehAdj;
+
+                    EntityManager.SetComponentData(entities[i], updated);
+
+                    entities.Dispose();
+                    rules.Dispose();
                     return;
                 }
             }
 
-            var newRuleEntity = EntityManager.CreateEntity(typeof(CustomRule));
-            EntityManager.SetComponentData(newRuleEntity, new CustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj));
+            Mod.log.Warn($"SetCustomRule failed: No CustomRule found with ruleId {ruleId}");
+            entities.Dispose();
+            rules.Dispose();
         }
 
 
-        public static void RemoveCustomRule(int ruleId)
+        public void AddCustomRule(FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+        {
+            var newRuleEntity = EntityManager.CreateEntity(typeof(CustomRule));
+            EntityManager.SetComponentData(newRuleEntity, new CustomRule(ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj));
+        }
+
+
+        public static void RemoveCustomRule(Colossal.Hash128 ruleId)
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             EntityQuery query = entityManager.CreateEntityQuery(typeof(CustomRule));
@@ -241,7 +261,7 @@ namespace SmartTransportation.Bridge
         }
 
 
-        public (int, FixedString64Bytes, int, int, int, int, int, int)[] GetCustomRules()
+        public (Colossal.Hash128, FixedString64Bytes, int, int, int, int, int, int)[] GetCustomRules()
         {
             EntityQuery query = EntityManager.CreateEntityQuery(typeof(CustomRule));
             var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
@@ -276,35 +296,48 @@ namespace SmartTransportation.Bridge
 
             //if (!firstUpdate)
             //{
-            //    // Test adding/setting custom rules
-            //    SetCustomRule(101, "Rule One", 45, 10, 25, 15, 20, 5);
-            //    SetCustomRule(102, "Rule Two", 60, 12, 30, 10, 10, 10);
-            //    SetCustomRule(103, "Rule Three", 50, 11, 20, 20, 15, 8);
+            //    // Step 1: Add new rules
+            //    AddCustomRule("Alpha", 40, 10, 20, 10, 25, 5);
+            //    AddCustomRule("Beta", 60, 15, 30, 15, 20, 10);
             //
-            //    Mod.log.Info("=== All Custom Rules After Adding ===");
-            //    foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in GetCustomRules())
+            //    var allRules = GetCustomRules();
+            //
+            //    Mod.log.Info("=== After Adding Custom Rules ===");
+            //    foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in allRules)
             //    {
-            //        Mod.log.Info($"ID: {id}, Name: {name}, Occupancy: {occ}, StdTicket: {ticket}, MaxInc: {inc}, MaxDec: {dec}, MaxAdj: {maxAdj}, MinAdj: {minAdj}");
+            //        Mod.log.Info($"ID: {id}, Name: {name}, Occ: {occ}, StdTicket: {ticket}, MaxInc: {inc}, MaxDec: {dec}, MaxAdj: {maxAdj}, MinAdj: {minAdj}");
+            //
             //    }
             //
-            //    // Test fetching a specific rule
-            //    var (ruleName, occ2, ticket2, inc2, dec2, maxAdj2, minAdj2) = GetCustomRule(102);
-            //    Mod.log.Info($"--- Retrieved Rule 102 ---");
-            //    Mod.log.Info($"Name: {ruleName}, Occupancy: {occ2}, StdTicket: {ticket2}, MaxInc: {inc2}, MaxDec: {dec2}, MaxAdj: {maxAdj2}, MinAdj: {minAdj2}");
-            //
-            //    // Test removing a rule
-            //    RemoveCustomRule(101);
-            //
-            //    Mod.log.Info("=== All Custom Rules After Removing Rule 101 ===");
-            //    foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in GetCustomRules())
+            //    if (allRules.Length > 0)
             //    {
-            //        Mod.log.Info($"ID: {id}, Name: {name}, Occupancy: {occ}, StdTicket: {ticket}, MaxInc: {inc}, MaxDec: {dec}, MaxAdj: {maxAdj}, MinAdj: {minAdj}");
+            //        // Step 2: Pick the first rule and update it
+            //        var (targetId, _, _, _, _, _, _, _) = allRules[0];
+            //
+            //        Mod.log.Info($"--- Updating Rule with ID: {targetId} ---");
+            //        SetCustomRule(targetId, "Alpha (Updated)", 55, 12, 22, 8, 18, 6);
+            //
+            //        // Step 3: Fetch updated rule
+            //        var (updatedName, updatedOcc, updatedTicket, updatedInc, updatedDec, updatedMax, updatedMin) = GetCustomRule(targetId);
+            //
+            //        Mod.log.Info($"Updated Rule: Name: {updatedName}, Occ: {updatedOcc}, StdTicket: {updatedTicket}, MaxInc: {updatedInc}, MaxDec: {updatedDec}, MaxAdj: {updatedMax}, MinAdj: {updatedMin}");
+            //
+            //        // Step 4: Remove that rule
+            //        RemoveCustomRule(targetId);
+            //    }
+            //
+            //    // Step 5: Log what's left
+            //    var finalRules = GetCustomRules();
+            //    Mod.log.Info("=== After Removing First Custom Rule ===");
+            //    foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in finalRules)
+            //    {
+            //        Mod.log.Info($"ID: {id}, Name: {name}, Occ: {occ}, StdTicket: {ticket}, MaxInc: {inc}, MaxDec: {dec}, MaxAdj: {maxAdj}, MinAdj: {minAdj}");
             //    }
             //
             //    firstUpdate = true;
             //}
             //
-            //this.Enabled = false; // Prevent further updates
+            this.Enabled = false; // Disable after one run
         }
 
     }
