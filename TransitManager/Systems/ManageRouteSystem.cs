@@ -18,6 +18,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using Unity.Collections;
 using Unity.Entities;
+using static Unity.Collections.Unicode;
 
 namespace SmartTransportation.Bridge
 {
@@ -27,7 +28,7 @@ namespace SmartTransportation.Bridge
         private const int disabled_int_id = 999; // Used for disabled routes
         private bool firstUpdate = false;
 
-        private static readonly Dictionary<Colossal.Hash128, string> RuleNames = new()
+        public static readonly Dictionary<Colossal.Hash128, string> RuleNames = new()
         {
             { new Colossal.Hash128((uint)disabled_int_id,0,0,0), "Disabled" },
             { new Colossal.Hash128((uint)TransportType.Bus,0,0,0), TransportType.Bus.ToString()},
@@ -105,7 +106,7 @@ namespace SmartTransportation.Bridge
                 }
 
                 // Check if the rule already exists
-                var (existingName, _, _, _, _, _, _) = GetCustomRule(ruleId);
+                var (_, existingName, _, _, _, _, _, _) = GetCustomRule(ruleId);
                 if (!string.IsNullOrEmpty(existingName.ToString()))
                 {
                     // Update
@@ -115,11 +116,7 @@ namespace SmartTransportation.Bridge
                 {
                     // Create
                     Entity entity = EntityManager.CreateEntity(typeof(CustomRule));
-                    var rule = new CustomRule(ruleName, occ, ticket, inc, dec, maxAdj, minAdj);
-
-                    typeof(CustomRule)
-                        .GetField("_ruleId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                        .SetValueDirect(__makeref(rule), ruleId);
+                    var rule = new CustomRule(ruleId, ruleName, occ, ticket, inc, dec, maxAdj, minAdj);
 
                     EntityManager.SetComponentData(entity, rule);
                 }
@@ -273,7 +270,7 @@ namespace SmartTransportation.Bridge
         }
 
 
-        public (FixedString64Bytes, int, int, int, int, int, int) GetCustomRule(Colossal.Hash128 ruleId)
+        public (Colossal.Hash128 ruleId, string, int, int, int, int, int, int) GetCustomRule(Colossal.Hash128 ruleId)
         {
             EntityQuery query = EntityManager.CreateEntityQuery(typeof(CustomRule));
             var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
@@ -282,7 +279,7 @@ namespace SmartTransportation.Bridge
             {
                 if (r.ruleId == ruleId)
                 {
-                    return (r.ruleName, r.occupancy, r.stdTicket, r.maxTicketInc, r.maxTicketDec, r.maxVehAdj, r.minVehAdj);
+                    return (r.ruleId, r.ruleName.ToString(), r.occupancy, r.stdTicket, r.maxTicketInc, r.maxTicketDec, r.maxVehAdj, r.minVehAdj);
                 }
             }
 
@@ -296,39 +293,44 @@ namespace SmartTransportation.Bridge
             var entities = query.ToEntityArray(Allocator.Temp);
             var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
 
-            for (int i = 0; i < rules.Length; i++)
+            try
             {
-                if (rules[i].ruleId == ruleId)
+                for (int i = 0; i < rules.Length; i++)
                 {
-                    var updated = rules[i];
-                    updated.ruleName = ruleName;
-                    updated.occupancy = occupancy;
-                    updated.stdTicket = stdTicket;
-                    updated.maxTicketInc = maxTicketInc;
-                    updated.maxTicketDec = maxTicketDec;
-                    updated.maxVehAdj = maxVehAdj;
-                    updated.minVehAdj = minVehAdj;
+                    if (rules[i].ruleId == ruleId)
+                    {
+                        var updated = rules[i];
+                        updated.ruleName = ruleName;
+                        updated.occupancy = occupancy;
+                        updated.stdTicket = stdTicket;
+                        updated.maxTicketInc = maxTicketInc;
+                        updated.maxTicketDec = maxTicketDec;
+                        updated.maxVehAdj = maxVehAdj;
+                        updated.minVehAdj = minVehAdj;
 
-                    EntityManager.SetComponentData(entities[i], updated);
+                        EntityManager.SetComponentData(entities[i], updated);
 
-                    entities.Dispose();
-                    rules.Dispose();
-                    return;
+                        return;
+                    }
                 }
-            }
 
-            Mod.log.Warn($"SetCustomRule failed: No CustomRule found with ruleId {ruleId}");
-            entities.Dispose();
-            rules.Dispose();
+            }
+            finally
+            {
+                entities.Dispose();
+                rules.Dispose();
+            }
         }
 
 
-        public void AddCustomRule(FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+        public Colossal.Hash128 AddCustomRule()
         {
             var newRuleEntity = EntityManager.CreateEntity(typeof(CustomRule));
-            EntityManager.SetComponentData(newRuleEntity, new CustomRule(ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj));
-        }
+            CustomRule customRule = new CustomRule("Unnamed", 0, 0, 0, 0, 0, 0);
+            EntityManager.SetComponentData(newRuleEntity,customRule);
 
+            return customRule.ruleId; // Return the generated ruleId
+        }
 
         public static void RemoveCustomRule(Colossal.Hash128 ruleId)
         {
@@ -366,68 +368,73 @@ namespace SmartTransportation.Bridge
 
             SyncDefaultRulesFromSettings();
 
-            //Entity routeEntity = GetRouteEntityFromId(1, TransportType.Train);
-            //if (routeEntity == Entity.Null)
-            //{
-            //    Mod.log.Warn("[TEST] Could not find Bus route with ID 8.");
-            //    this.Enabled = false;
-            //    return;
-            //}
-            //
-            //Mod.log.Info("=== STARTING ManageRouteSystem TEST ===");
-            //
-            //// 1. Add Custom Rules
-            //AddCustomRule("Alpha", 40, 10, 20, 10, 25, 5);
-            //AddCustomRule("Beta", 60, 15, 30, 15, 20, 10);
-            //Mod.log.Info("[TEST] Added Custom Rules");
-            //
-            //// 2. Get All Custom Rules
-            //var allCustomRules = GetCustomRules();
-            //foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in allCustomRules)
-            //{
-            //    Mod.log.Info($"[TEST] CustomRule - ID: {id}, Name: {name}, Occ: {occ}, StdTicket: {ticket}, MaxInc: {inc}, MaxDec: {dec}, MaxAdj: {maxAdj}, MinAdj: {minAdj}");
-            //}
-            //
-            //// 3. SetRouteRule: Assign the first custom rule to the route
-            //var (testRuleId, _, _, _, _, _, _, _) = allCustomRules.Last();
-            //SetRouteRule(routeEntity, testRuleId);
-            //Mod.log.Info($"[TEST] SetRouteRule to custom rule ID: {testRuleId}");
-            //
-            //// 4. GetRouteRule: Confirm assignment
-            //var (assignedRuleId, assignedName) = GetRouteRule(routeEntity);
-            //Mod.log.Info($"[TEST] GetRouteRule => ID: {assignedRuleId}, Name: {assignedName}");
-            //
-            //// 5. GetRouteRules: List all valid rules for the route
-            //var routeRules = GetRouteRules(routeEntity);
-            //foreach (var (id, name) in routeRules)
-            //{
-            //    Mod.log.Info($"[TEST] Valid RouteRule => ID: {id}, Name: {name}");
-            //}
-            //
-            //// 6. GetCustomRule: Get the full data of the assigned custom rule
-            //var (rName, rOcc, rTicket, rInc, rDec, rMax, rMin) = GetCustomRule(testRuleId);
-            //Mod.log.Info($"[TEST] GetCustomRule => Name: {rName}, Occ: {rOcc}, StdTicket: {rTicket}, MaxInc: {rInc}, MaxDec: {rDec}, MaxAdj: {rMax}, MinAdj: {rMin}");
-            //
-            //// 7. Update the custom rule
-            //SetCustomRule(testRuleId, "Alpha Updated", 55, 12, 22, 8, 18, 6);
-            //var (uName, uOcc, uTicket, uInc, uDec, uMax, uMin) = GetCustomRule(testRuleId);
-            //Mod.log.Info($"[TEST] Updated CustomRule => Name: {uName}, Occ: {uOcc}, StdTicket: {uTicket}, MaxInc: {uInc}, MaxDec: {uDec}, MaxAdj: {uMax}, MinAdj: {uMin}");
-            //
-            //// 8. Remove the custom rule
-            //RemoveCustomRule(testRuleId);
-            //Mod.log.Info($"[TEST] Removed CustomRule with ID: {testRuleId}");
-            //
-            //// 9. Confirm removal
-            //var afterRemoval = GetCustomRules();
-            //Mod.log.Info("[TEST] Remaining Custom Rules:");
-            //foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in afterRemoval)
-            //{
-            //    Mod.log.Info($"[TEST] Remaining => ID: {id}, Name: {name}");
-            //}
-            //
-            //Mod.log.Info("=== END OF ManageRouteSystem TEST ===");
-            //
-            //firstUpdate = true;
+            Entity routeEntity = GetRouteEntityFromId(1, TransportType.Bus);
+            if (routeEntity == Entity.Null)
+            {
+                Mod.log.Warn("[TEST] Could not find Bus route with ID 1.");
+                this.Enabled = false;
+                return;
+            }
+
+            Mod.log.Info("=== STARTING ManageRouteSystem TEST ===");
+
+            // 1. Add Custom Rules (use AddCustomRule + SetCustomRule)
+            var alphaId = AddCustomRule();
+            SetCustomRule(alphaId, "Alpha", 40, 10, 20, 10, 25, 5);
+
+            var betaId = AddCustomRule();
+            SetCustomRule(betaId, "Beta", 60, 15, 30, 15, 20, 10);
+
+            Mod.log.Info("[TEST] Added Custom Rules");
+
+            // 2. Get All Custom Rules
+            var allCustomRules = GetCustomRules();
+            foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in allCustomRules)
+            {
+                Mod.log.Info($"[TEST] CustomRule - ID: {id}, Name: {name}, Occ: {occ}, StdTicket: {ticket}, MaxInc: {inc}, MaxDec: {dec}, MaxAdj: {maxAdj}, MinAdj: {minAdj}");
+            }
+
+            // 3. SetRouteRule: Assign the first custom rule to the route
+            var (testRuleId, _, _, _, _, _, _, _) = allCustomRules.Last();
+            SetRouteRule(routeEntity, testRuleId);
+            Mod.log.Info($"[TEST] SetRouteRule to custom rule ID: {testRuleId}");
+
+            // 4. GetRouteRule: Confirm assignment
+            var (assignedRuleId, assignedName) = GetRouteRule(routeEntity);
+            Mod.log.Info($"[TEST] GetRouteRule => ID: {assignedRuleId}, Name: {assignedName}");
+
+            // 5. GetRouteRules: List all valid rules for the route
+            var routeRules = GetRouteRules(routeEntity);
+            foreach (var (id, name) in routeRules)
+            {
+                Mod.log.Info($"[TEST] Valid RouteRule => ID: {id}, Name: {name}");
+            }
+
+            // 6. GetCustomRule: Get the full data of the assigned custom rule
+            var (_, rName, rOcc, rTicket, rInc, rDec, rMax, rMin) = GetCustomRule(testRuleId);
+            Mod.log.Info($"[TEST] GetCustomRule => Name: {rName}, Occ: {rOcc}, StdTicket: {rTicket}, MaxInc: {rInc}, MaxDec: {rDec}, MaxAdj: {rMax}, MinAdj: {rMin}");
+
+            // 7. Update the custom rule
+            SetCustomRule(testRuleId, "Alpha Updated", 55, 12, 22, 8, 18, 6);
+            var (_, uName, uOcc, uTicket, uInc, uDec, uMax, uMin) = GetCustomRule(testRuleId);
+            Mod.log.Info($"[TEST] Updated CustomRule => Name: {uName}, Occ: {uOcc}, StdTicket: {uTicket}, MaxInc: {uInc}, MaxDec: {uDec}, MaxAdj: {uMax}, MinAdj: {uMin}");
+
+            // 8. Remove the custom rule
+            RemoveCustomRule(testRuleId);
+            Mod.log.Info($"[TEST] Removed CustomRule with ID: {testRuleId}");
+
+            // 9. Confirm removal
+            var afterRemoval = GetCustomRules();
+            Mod.log.Info("[TEST] Remaining Custom Rules:");
+            foreach (var (id, name, occ, ticket, inc, dec, maxAdj, minAdj) in afterRemoval)
+            {
+                Mod.log.Info($"[TEST] Remaining => ID: {id}, Name: {name}");
+            }
+
+            Mod.log.Info("=== END OF ManageRouteSystem TEST ===");
+
+            firstUpdate = true;
+
             this.Enabled = false;
         }
 

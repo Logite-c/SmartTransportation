@@ -1,5 +1,6 @@
 ﻿using Colossal.Serialization.Entities;
 using Game.Agents;
+using SmartTransportation.Bridge;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,7 +26,25 @@ namespace SmartTransportation.Components
 
         public CustomRule(FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
         {
-            this._ruleId = Guid.NewGuid();
+            Colossal.Hash128 ruleId;
+            do
+            {
+                ruleId = Guid.NewGuid();
+            }
+            while (ManageRouteSystem.RuleNames.ContainsKey(ruleId));
+            this._ruleId = ruleId;
+            this.ruleName = ruleName;
+            this.occupancy = occupancy;
+            this.stdTicket = stdTicket;
+            this.maxTicketInc = maxTicketInc;
+            this.maxTicketDec = maxTicketDec;
+            this.maxVehAdj = maxVehAdj;
+            this.minVehAdj = minVehAdj;
+        }
+
+        public CustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+        {
+            this._ruleId = ruleId;
             this.ruleName = ruleName;
             this.occupancy = occupancy;
             this.stdTicket = stdTicket;

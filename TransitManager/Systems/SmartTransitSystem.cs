@@ -331,9 +331,9 @@ namespace SmartTransportation
                         {
                             int maxVehiclesAdj = 0;
                             int minVehiclesAdj = 0;
-                            FixedString64Bytes name = default;
+                            string name = default;
                             
-                            (name, occupancy, standard_ticket, max_increase, max_discount, maxVehiclesAdj, minVehiclesAdj) = manageRouteSystem.GetCustomRule(routeRule.customRule);
+                            (_, name, occupancy, standard_ticket, max_increase, max_discount, maxVehiclesAdj, minVehiclesAdj) = manageRouteSystem.GetCustomRule(routeRule.customRule);
                             minVehicles = (int)Math.Round(minVehicles * (1 - minVehiclesAdj / 100f));
 
                             //Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Custom Rule:{routeRule.customRule}, Standard Ticket Price:{standard_ticket}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Empty Vehicles:{emptyVehicles}, Passengers:{passengers}, Waiting Passengers:{waiting}, Occupancy:{capacity}, Target Occupancy:{occupancy/100f}");
