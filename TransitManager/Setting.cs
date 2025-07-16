@@ -10,8 +10,9 @@ using Unity.Entities;
 namespace SmartTransportation
 {
     [FileLocation(nameof(SmartTransportation))]
-    [SettingsUIGroupOrder(BusGroup, TramGroup, SubwayGroup, TrainGroup, TaxiGroup, CustomGroup, SettingsGroup)]
-    [SettingsUIShowGroupName(BusGroup, TramGroup, SubwayGroup, TrainGroup, CustomGroup, TaxiGroup, SettingsGroup)]
+    [SettingsUIGroupOrder(BusGroup, TramGroup, SubwayGroup, TrainGroup, ShipGroup, AirplaneGroup, TaxiGroup, CustomGroup, SettingsGroup)]
+    [SettingsUIShowGroupName(BusGroup, TramGroup, SubwayGroup, TrainGroup, ShipGroup, AirplaneGroup, CustomGroup, TaxiGroup, SettingsGroup)]
+
     public class Setting : ModSetting
     {
         public const string TransitSection = "TransitSection";
@@ -25,6 +26,9 @@ namespace SmartTransportation
         public const string TaxiGroup = "TaxiGroup";
         public const string CustomGroup = "CustomGroup";
         public const string SettingsGroup = "SettingsGroup";
+        public const string ShipGroup = "ShipGroup";
+        public const string AirplaneGroup = "AirplaneGroup";
+
 
         public Setting(IMod mod) : base(mod)
         {
@@ -70,6 +74,23 @@ namespace SmartTransportation
             min_vahicles_adj_Subway = -20;
             max_vahicles_adj_Train = 0;
             min_vahicles_adj_Train = 30;
+
+            disable_Ship = false;
+            target_occupancy_Ship = 65;
+            max_ticket_increase_Ship = 40;
+            max_ticket_discount_Ship = 20;
+            standard_ticket_Ship = 12;
+            max_vahicles_adj_Ship = 50;
+            min_vahicles_adj_Ship = 30;
+
+            disable_Airplane = false;
+            target_occupancy_Airplane = 70;
+            max_ticket_increase_Airplane = 60;
+            max_ticket_discount_Airplane = 30;
+            standard_ticket_Airplane = 20;
+            max_vahicles_adj_Airplane = 30;
+            min_vahicles_adj_Airplane = 40;
+
 
         }
 
@@ -204,6 +225,74 @@ namespace SmartTransportation
         [SettingsUISection(TransitSection, TrainGroup)]
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Train))]
         public int min_vahicles_adj_Train { get; set; }
+
+        [SettingsUISection(TransitSection, ShipGroup)]
+        public bool disable_Ship { get; set; }
+
+        [SettingsUISlider(min = 10, max = 90, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, ShipGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ship))]
+        public int target_occupancy_Ship { get; set; }
+
+        [SettingsUISlider(min = 0, max = 30, step = 1, scalarMultiplier = 1, unit = Unit.kInteger)]
+        [SettingsUISection(TransitSection, ShipGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ship))]
+        public int standard_ticket_Ship { get; set; }
+
+        [SettingsUISlider(min = 0, max = 300, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, ShipGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ship))]
+        public int max_ticket_increase_Ship { get; set; }
+
+        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, ShipGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ship))]
+        public int max_ticket_discount_Ship { get; set; }
+
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, ShipGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ship))]
+        public int max_vahicles_adj_Ship { get; set; }
+
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, ShipGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ship))]
+        public int min_vahicles_adj_Ship { get; set; }
+        [SettingsUISection(TransitSection, AirplaneGroup)]
+        public bool disable_Airplane { get; set; }
+
+        [SettingsUISlider(min = 10, max = 90, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, AirplaneGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Airplane))]
+        public int target_occupancy_Airplane { get; set; }
+
+        [SettingsUISlider(min = 0, max = 30, step = 1, scalarMultiplier = 1, unit = Unit.kInteger)]
+        [SettingsUISection(TransitSection, AirplaneGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Airplane))]
+        public int standard_ticket_Airplane { get; set; }
+
+        [SettingsUISlider(min = 0, max = 300, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, AirplaneGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Airplane))]
+        public int max_ticket_increase_Airplane { get; set; }
+
+        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, AirplaneGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Airplane))]
+        public int max_ticket_discount_Airplane { get; set; }
+
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, AirplaneGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Airplane))]
+        public int max_vahicles_adj_Airplane { get; set; }
+
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, AirplaneGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Airplane))]
+        public int min_vahicles_adj_Airplane { get; set; }
+
+
+
 
         //[SettingsUISection(TransitSection, TaxiGroup)]
         //public bool disable_Taxi { get; set; }
@@ -380,6 +469,26 @@ namespace SmartTransportation
 
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.Button)), "Reset Settings" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.Button)), $"Reset settings to default values" },
+
+                { m_Setting.GetOptionGroupLocaleID(Setting.ShipGroup), "Ship Settings" },
+                { m_Setting.GetOptionGroupLocaleID(Setting.AirplaneGroup), "Airplane Settings" },
+                
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Ship)), "Disable Ship Dynamic Pricing & Frequency" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Ship)), "Target Occupancy" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Ship)), "Standard Ticket Price" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Ship)), "Max. Ticket Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Ship)), "Max. Ticket Discount" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Ship)), "Max. Vehicle Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Ship)), "Min. Vehicle Decrease" },
+
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Airplane)), "Disable Airplane Dynamic Pricing & Frequency" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Airplane)), "Target Occupancy" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Airplane)), "Standard Ticket Price" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Airplane)), "Max. Ticket Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Airplane)), "Max. Ticket Discount" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Airplane)), "Max. Vehicle Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Airplane)), "Min. Vehicle Decrease" },
+
 
 
             };

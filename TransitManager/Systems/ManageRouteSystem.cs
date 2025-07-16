@@ -35,6 +35,9 @@ namespace SmartTransportation.Bridge
             { new Colossal.Hash128((uint)TransportType.Train,0,0,0), TransportType.Train.ToString()},
             { new Colossal.Hash128((uint)TransportType.Tram,0,0,0), TransportType.Tram.ToString()},
             { new Colossal.Hash128((uint)TransportType.Subway,0,0,0), TransportType.Subway.ToString()},
+            { new Colossal.Hash128((uint)TransportType.Ship,0,0,0), TransportType.Ship.ToString()},
+            { new Colossal.Hash128((uint)TransportType.Airplane,0,0,0), TransportType.Airplane.ToString()},
+
         };
 
 
@@ -100,6 +103,25 @@ namespace SmartTransportation.Bridge
                     maxAdj = Mod.m_Setting.max_vahicles_adj_Train;
                     minAdj = Mod.m_Setting.min_vahicles_adj_Train;
                 }
+                else if (ruleName == "Ship")
+                {
+                    occ = Mod.m_Setting.target_occupancy_Ship;
+                    ticket = Mod.m_Setting.standard_ticket_Ship;
+                    inc = Mod.m_Setting.max_ticket_increase_Ship;
+                    dec = Mod.m_Setting.max_ticket_discount_Ship;
+                    maxAdj = Mod.m_Setting.max_vahicles_adj_Ship;
+                    minAdj = Mod.m_Setting.min_vahicles_adj_Ship;
+                }
+                else if (ruleName == "Airplane")
+                {
+                    occ = Mod.m_Setting.target_occupancy_Airplane;
+                    ticket = Mod.m_Setting.standard_ticket_Airplane;
+                    inc = Mod.m_Setting.max_ticket_increase_Airplane;
+                    dec = Mod.m_Setting.max_ticket_discount_Airplane;
+                    maxAdj = Mod.m_Setting.max_vahicles_adj_Airplane;
+                    minAdj = Mod.m_Setting.min_vahicles_adj_Airplane;
+                }
+
                 else
                 {
                     continue; // Unknown built-in name
@@ -107,7 +129,7 @@ namespace SmartTransportation.Bridge
 
                 // Check if the rule already exists
                 var (_, existingName, _, _, _, _, _, _) = GetCustomRule(ruleId);
-                if (!string.IsNullOrEmpty(existingName.ToString()))
+                if (!string.IsNullOrEmpty(existingName))
                 {
                     // Update
                     SetCustomRule(ruleId, ruleName, occ, ticket, inc, dec, maxAdj, minAdj);
@@ -191,8 +213,11 @@ namespace SmartTransportation.Bridge
                         TransportType.Tram => Mod.m_Setting.disable_Tram,
                         TransportType.Subway => Mod.m_Setting.disable_Subway,
                         TransportType.Train => Mod.m_Setting.disable_Train,
+                        TransportType.Ship => Mod.m_Setting.disable_Ship,
+                        TransportType.Airplane => Mod.m_Setting.disable_Airplane,
                         _ => true
                     };
+
 
                     if (!isDisabled)
                     {

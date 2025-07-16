@@ -234,6 +234,12 @@ namespace SmartTransportation
                                 continue;
                             }
                             break;
+                        case TransportType.Ship:
+                            if (Mod.m_Setting.disable_Ship) continue;
+                            break;
+                        case TransportType.Airplane:
+                            if (Mod.m_Setting.disable_Airplane) continue;
+                            break;
                         default:
                             break;
                     }
@@ -374,6 +380,23 @@ namespace SmartTransportation
                                     maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Train / 100f));
                                     standard_ticket = Mod.m_Setting.standard_ticket_Train;
                                     break;
+                                case TransportType.Ship:
+                                    occupancy = Mod.m_Setting.target_occupancy_Ship;
+                                    max_discount = Mod.m_Setting.max_ticket_discount_Ship;
+                                    max_increase = Mod.m_Setting.max_ticket_increase_Ship;
+                                    maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Ship / 100f));
+                                    minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Ship / 100f));
+                                    standard_ticket = Mod.m_Setting.standard_ticket_Ship;
+                                    break;
+                                case TransportType.Airplane:
+                                    occupancy = Mod.m_Setting.target_occupancy_Airplane;
+                                    max_discount = Mod.m_Setting.max_ticket_discount_Airplane;
+                                    max_increase = Mod.m_Setting.max_ticket_increase_Airplane;
+                                    maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Airplane / 100f));
+                                    minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Airplane / 100f));
+                                    standard_ticket = Mod.m_Setting.standard_ticket_Airplane;
+                                    break;
+
                                 default:
                                     continue;
                             }
