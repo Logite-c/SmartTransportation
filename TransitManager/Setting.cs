@@ -10,8 +10,8 @@ using Unity.Entities;
 namespace SmartTransportation
 {
     [FileLocation(nameof(SmartTransportation))]
-    [SettingsUIGroupOrder(BusGroup, TramGroup, SubwayGroup, TrainGroup, ShipGroup, AirplaneGroup, TaxiGroup, CustomGroup, SettingsGroup)]
-    [SettingsUIShowGroupName(BusGroup, TramGroup, SubwayGroup, TrainGroup, ShipGroup, AirplaneGroup, CustomGroup, TaxiGroup, SettingsGroup)]
+    [SettingsUIGroupOrder(BusGroup, TramGroup, SubwayGroup, TrainGroup, ShipGroup, AirplaneGroup, TaxiGroup, CustomGroup, SettingsGroup, ChirpSettings)]
+    [SettingsUIShowGroupName(BusGroup, TramGroup, SubwayGroup, TrainGroup, ShipGroup, AirplaneGroup, CustomGroup, TaxiGroup, SettingsGroup, ChirpSettings)]
 
     public class Setting : ModSetting
     {
@@ -28,6 +28,7 @@ namespace SmartTransportation
         public const string SettingsGroup = "SettingsGroup";
         public const string ShipGroup = "ShipGroup";
         public const string AirplaneGroup = "AirplaneGroup";
+        public const string ChirpSettings = "ChirpSettings";
 
 
         public Setting(IMod mod) : base(mod)
@@ -91,6 +92,9 @@ namespace SmartTransportation
             max_vahicles_adj_Airplane = 30;
             min_vahicles_adj_Airplane = 40;
 
+            disable_chirps = false;
+            busy_stop_enter_pct = 70;
+            busy_stop_exit_pct = 55;
 
         }
 
@@ -332,6 +336,17 @@ namespace SmartTransportation
         [SettingsUISection(SettingsSection, SettingsGroup)]
         public bool debug { get; set; }
 
+        [SettingsUISection(SettingsSection, ChirpSettings)]
+        public bool disable_chirps { get; set; }
+
+        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(SettingsSection, ChirpSettings)]
+        public float busy_stop_enter_pct { get; set; }
+
+        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(SettingsSection, ChirpSettings)]
+        public float busy_stop_exit_pct { get; set; }
+
         public enum UpdateFreqEnum
         {
             min45 = 32,
@@ -375,13 +390,14 @@ namespace SmartTransportation
                 { m_Setting.GetOptionGroupLocaleID(Setting.TrainGroup), "Train Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.TaxiGroup), "Taxi Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.CustomGroup), "Custom Rules Settings" },
-                { m_Setting.GetOptionGroupLocaleID(Setting.SettingsGroup), "Settings Settings" },
+                { m_Setting.GetOptionGroupLocaleID(Setting.SettingsGroup), "Settings" },
+                { m_Setting.GetOptionGroupLocaleID(Setting.ChirpSettings), "Chirps" },
 
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.debug)), "Write Transit Information to Log" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.debug)), "Writes information used to make decision on ticket price and frequency for each route, such as transit occupancy and number of vehicles, to log." },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.updateFreq)), "Update Frequency (In-game minutes)" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.updateFreq)), "How frequent Smart Transportation will evaluate each route and decide to update vehicles or ticket prices. Time is in in-game minutes. Note that if you are using the slow feature from the Realistic Trip mods, this time is based on the vanilla game, with that feature you need to divide this time with the slow time factor to get the actual time with that mod." },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.waiting_time_weight)), "Weighting Time Weight" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.waiting_time_weight)), "Waiting Time Weight" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.waiting_time_weight)), "When this mod calculates target occupancy for each route, it will take into account the passengers that are waiting at a station stop. This weight is applied to the number of passengers waiting when doing this calculation. The assumption is that when those passengers board, some passengers that are already in the vehicle will deboard." },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.threshold)), "Target Occupancy Threshold" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.threshold)), "Number of percentage points within the target occupancy that will be considered when checking if the target occupancy has been met." },
@@ -488,6 +504,26 @@ namespace SmartTransportation
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Airplane)), "Max. Ticket Discount" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Airplane)), "Max. Vehicle Increase" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Airplane)), "Min. Vehicle Decrease" },
+                // --- SmartTransit chirp-related settings ------------------------------------
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_chirps)), "Disable Chirps" },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_chirps)),  "Do not send in-game chirp notifications from Smart Transportation." },
+                
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.busy_stop_enter_pct)), "Busy Stop Alert Threshold" },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.busy_stop_enter_pct)),  "Trigger a chirp when the busiest stop’s waiting passengers reach this percentage of a typical vehicle’s capacity." },
+                
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.busy_stop_exit_pct)),  "Busy Stop Alert Clear Level" },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.busy_stop_exit_pct)),   "Clear (stop) the alert once the waiting passengers fall below this percentage of a typical vehicle’s capacity." },
+
+
+                { "chirp.mod_name",      "SmartTransportation Mod" },
+                // Template used in messages to show the line label (type + number)
+                { "chirp.line_label",    "{type} Line {number}" },
+                
+                // When a single stop is crowded relative to vehicle capacity
+                // Variables: line_label, waiting, enter_pct, vehicle_cap
+                { "chirp.stop_busy",
+                  "{line_label}: Stop is very busy — {waiting} passengers waiting." },
+                
 
 
 

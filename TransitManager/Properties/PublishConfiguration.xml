@@ -10,6 +10,8 @@
 	<LongDescription>
 This mod automates ticket prices and number of vehicles in transit routes. This will make your transit system smarter and able to adapt to peak and off-peak hours.
 
+**New on Version 0.4:** Added Chirp messages to notify players when stops are busy.
+
 ## Transit Section
 
 It is possible to configure how the mod will adjust transit routes for each mode (Bus, Tram, Subway and Train). The settings that can be changed include:
@@ -35,6 +37,7 @@ The min/max vehicle settings were based on the work developed by SonnyX on the T
 	<Thumbnail Value="Properties/Thumbnail.png" />
 	<!--Screenshot, can be set multiple times-->
 	<Screenshot Value="Properties/screenshot.png" />
+	<Screenshot Value="Properties/chirpmessage.png" />
 	<!--Tag, can be set multiple times-->
 	<Tag Value="" />
 	<!--Link to the forum post where the mod can be discussed-->
@@ -44,10 +47,12 @@ The min/max vehicle settings were based on the work developed by SonnyX on the T
 	<!--Recommended version of the base game to use the mod-->
 	<GameVersion Value="1.3.*" />
 	<!--Dependency for the mod, can be set multiple times-->
-	<Dependency Id="" />
+	<Dependency Id="121812" />
 	<ChangeLog>
-* Implemented custom rules and inegrated with Extended Transportation Manager Mod
-* Fixed ticket price bug - mod was using default game prices ometimes instead of modded prices
+* Added ship and airplane rules
+* Fixed ticket price bug - mod was using default game prices instead of modded prices
+* Fixed memory leak issue
+* Added Chirp messages for busy stops
 	</ChangeLog>
 	<!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon-->
 	<ExternalLink Type="github" Url="https://github.com/ruzbeh0/SmartTransportation" />
