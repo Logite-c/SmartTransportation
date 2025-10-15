@@ -522,7 +522,7 @@ namespace SmartTransportation
                 // When a single stop is crowded relative to vehicle capacity
                 // Variables: line_label, waiting, enter_pct, vehicle_cap
                 { "chirp.stop_busy",
-                  "{line_label}: Stop is very busy — {waiting} passengers waiting." },
+                  "{line_label}: Stop {LINK_1} is very busy — {waiting} passengers waiting." },
                 
 
 

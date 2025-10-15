@@ -43,16 +43,13 @@ The min/max vehicle settings were based on the work developed by SonnyX on the T
 	<!--Link to the forum post where the mod can be discussed-->
 	<ForumLink Value="https://forum.paradoxplaza.com/forum/threads/smart-transportation-mod.1704128/" />
 	<!--Version of the mod-->
-	<ModVersion Value="0.4" />
+	<ModVersion Value="0.4.1" />
 	<!--Recommended version of the base game to use the mod-->
 	<GameVersion Value="1.3.*" />
 	<!--Dependency for the mod, can be set multiple times-->
 	<Dependency Id="121812" />
 	<ChangeLog>
-* Added ship and airplane rules
-* Fixed ticket price bug - mod was using default game prices instead of modded prices
-* Fixed memory leak issue
-* Added Chirp messages for busy stops
+* Fixed NullPointerException bug
 	</ChangeLog>
 	<!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon-->
 	<ExternalLink Type="github" Url="https://github.com/ruzbeh0/SmartTransportation" />

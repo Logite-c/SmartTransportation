@@ -64,7 +64,7 @@ namespace SmartTransportation
         private float BusyStopEnterPct = Mod.m_Setting.busy_stop_enter_pct/100f;
         // Hysteresis clear level (e.g., 0.55 => clear once waiting < 55% of capacity)
         private float BusyStopExitPct = Mod.m_Setting.busy_stop_exit_pct/100f;
-        private int maxAlertsPerCycle = 3; // implement a per-cycle limit to avoid overwhelming the player
+        private int maxAlertsPerCycle = 2; // implement a per-cycle limit to avoid overwhelming the player
 
         // Optional: gate all chirps with one toggle.
         private bool ChirpsEnabled = !Mod.m_Setting.disable_chirps;
@@ -328,7 +328,7 @@ namespace SmartTransportation
                                     Connected connected;
                                     if (EntityManager.TryGetComponent<Connected>(waypoint.m_Waypoint, out connected))
                                     {
-                                        Mod.log.Info($"Stop {i}: {waitingPax.m_Count} waiting");
+                                        //Mod.log.Info($"Stop {i}: {waitingPax.m_Count} waiting");
                                         if (waitingPax.m_Count > maxStopWaiting)
                                         {
                                             maxStopWaiting = waitingPax.m_Count;
