@@ -10,8 +10,8 @@ using Unity.Entities;
 namespace SmartTransportation
 {
     [FileLocation(nameof(SmartTransportation))]
-    [SettingsUIGroupOrder(BusGroup, TramGroup, SubwayGroup, TrainGroup, ShipGroup, AirplaneGroup, TaxiGroup, CustomGroup, SettingsGroup, ChirpSettings)]
-    [SettingsUIShowGroupName(BusGroup, TramGroup, SubwayGroup, TrainGroup, ShipGroup, AirplaneGroup, CustomGroup, TaxiGroup, SettingsGroup, ChirpSettings)]
+    [SettingsUIGroupOrder(BusGroup, TramGroup, SubwayGroup, TrainGroup, ShipGroup, AirplaneGroup, FerryGroup, TaxiGroup, CustomGroup, SettingsGroup, ChirpSettings)]
+    [SettingsUIShowGroupName(BusGroup, TramGroup, SubwayGroup, TrainGroup, ShipGroup, AirplaneGroup, FerryGroup, CustomGroup, TaxiGroup, SettingsGroup, ChirpSettings)]
 
     public class Setting : ModSetting
     {
@@ -28,6 +28,7 @@ namespace SmartTransportation
         public const string SettingsGroup = "SettingsGroup";
         public const string ShipGroup = "ShipGroup";
         public const string AirplaneGroup = "AirplaneGroup";
+        public const string FerryGroup = "FerryGroup";
         public const string ChirpSettings = "ChirpSettings";
 
 
@@ -91,6 +92,14 @@ namespace SmartTransportation
             standard_ticket_Airplane = 20;
             max_vahicles_adj_Airplane = 30;
             min_vahicles_adj_Airplane = 40;
+
+            disable_Ferry = false;
+            target_occupancy_Ferry = 40;
+            max_ticket_increase_Ferry = 30;
+            max_ticket_discount_Ferry = 30;
+            standard_ticket_Ferry = 8;
+            max_vahicles_adj_Ferry = 30;
+            min_vahicles_adj_Ferry = 40;
 
             disable_chirps = false;
             busy_stop_enter_pct = 70;
@@ -295,32 +304,38 @@ namespace SmartTransportation
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Airplane))]
         public int min_vahicles_adj_Airplane { get; set; }
 
+        [SettingsUISection(TransitSection, FerryGroup)]
+        public bool disable_Ferry { get; set; }
 
+        [SettingsUISlider(min = 10, max = 90, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, FerryGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ferry))]
+        public int target_occupancy_Ferry { get; set; }
 
+        [SettingsUISlider(min = 0, max = 30, step = 1, scalarMultiplier = 1, unit = Unit.kInteger)]
+        [SettingsUISection(TransitSection, FerryGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ferry))]
+        public int standard_ticket_Ferry { get; set; }
 
-        //[SettingsUISection(TransitSection, TaxiGroup)]
-        //public bool disable_Taxi { get; set; }
-        //
-        //[SettingsUISlider(min = 10, max = 90, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
-        //[SettingsUISection(TaxiSection, TaxiGroup)]
-        //[SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
-        //public int target_occupancy_Taxi { get; set; }
-        //
-        //[SettingsUISlider(min = 0, max = 50, step = 1, scalarMultiplier = 1, unit = Unit.kInteger)]
-        //[SettingsUISection(TaxiSection, TaxiGroup)]
-        //[SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
-        //public int standard_ticket_Taxi { get; set; }
-        //
-        //[SettingsUISlider(min = 0, max = 300, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
-        //[SettingsUISection(TaxiSection, TaxiGroup)]
-        //[SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
-        //public int max_ticket_increase_Taxi { get; set; }
+        [SettingsUISlider(min = 0, max = 300, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, FerryGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ferry))]
+        public int max_ticket_increase_Ferry { get; set; }
 
-        //[SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
-        //[SettingsUISection(TaxiSection, TaxiGroup)]
-        //[SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
-        //public int max_ticket_discount_Taxi { get; set; }
+        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, FerryGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ferry))]
+        public int max_ticket_discount_Ferry { get; set; }
 
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, FerryGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ferry))]
+        public int max_vahicles_adj_Ferry { get; set; }
+
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, FerryGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Ferry))]
+        public int min_vahicles_adj_Ferry { get; set; }
 
         [SettingsUISlider(min = 0, max = 2, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         [SettingsUISection(SettingsSection, SettingsGroup)]
@@ -388,6 +403,9 @@ namespace SmartTransportation
                 { m_Setting.GetOptionGroupLocaleID(Setting.TramGroup), "Tram Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.SubwayGroup), "Subway Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.TrainGroup), "Train Settings" },
+                { m_Setting.GetOptionGroupLocaleID(Setting.AirplaneGroup), "Airplane Settings" },
+                { m_Setting.GetOptionGroupLocaleID(Setting.ShipGroup), "Ship Settings" },
+                { m_Setting.GetOptionGroupLocaleID(Setting.FerryGroup), "Ferry Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.TaxiGroup), "Taxi Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.CustomGroup), "Custom Rules Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.SettingsGroup), "Settings" },
@@ -426,6 +444,30 @@ namespace SmartTransportation
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Tram)), "Max. Vehicle Increase" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Tram)), "Min. Vehicle Decrease" },
 
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Airplane)), "Disable Airplane Dynamic Pricing & Frequency" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Airplane)), "Target Occupancy" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Airplane)), "Standard Ticket Price" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Airplane)), "Max. Ticket Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Airplane)), "Max. Ticket Discount" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Airplane)), "Max. Vehicle Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Airplane)), "Min. Vehicle Decrease" },
+
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Ship)), "Disable Ship Dynamic Pricing & Frequency" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Ship)), "Target Occupancy" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Ship)), "Standard Ticket Price" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Ship)), "Max. Ticket Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Ship)), "Max. Ticket Discount" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Ship)), "Max. Vehicle Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Ship)), "Min. Vehicle Decrease" },
+
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Ferry)), "Disable Ferry Dynamic Pricing & Frequency" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Ferry)), "Target Occupancy" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Ferry)), "Standard Ticket Price" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Ferry)), "Max. Ticket Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Ferry)), "Max. Ticket Discount" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Ferry)), "Max. Vehicle Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Ferry)), "Min. Vehicle Decrease" },
+
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_Tram)), "Disable tram daynamic pricing and frequency and use standard values for tickets and frequency. " },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.target_occupancy_Tram)), "Target occupancy for Trams. The mod will change ticket prices and vehicle frequency to try to reach this occupancy target." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.standard_ticket_Tram)), "Standard ticket price. Vanilla value is 8." },
@@ -458,52 +500,13 @@ namespace SmartTransportation
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Train)), "Max. Vehicle Increase" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Train)), "Min. Vehicle Decrease" },
 
-
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_Train)), "Disable Train daynamic pricing and frequency and use standard values for tickets and frequency. " },
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.target_occupancy_Train)), "Target occupancy for Trains. The mod will change ticket prices and vehicle frequency to try to reach this occupancy target." },
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.standard_ticket_Train)), "Standard ticket price. Vanilla value is 8." },
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_increase_Train)), "Maximum ticket increase. Ticket prices will increase at peak hours to generate more revenue and discourage cims to use transit at rush hours." },
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_vahicles_adj_Train)), "Increase the maximum allowed number of vehicles by this percentage." },
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.min_vahicles_adj_Train)), "Decrease the minimum allowed number of vehicles by this percentage." },
-
-                //{ m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Taxi)), "Disable Taxi Dynamic Pricing" },
-                //{ m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Taxi)), "Target Usage" },
-                //{ m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Taxi)), "Standard Minimum Taxi Fee" },
-                //{ m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Taxi)), "Max. Fee Increase" },
-                //{ m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Taxi)), "Max. Fee Discount" },
-                //
-                //{ m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_Taxi)), "Disable Taxi daynamic pricing and use standard minimum taxi fee. " },
-                //{ m_Setting.GetOptionDescLocaleID(nameof(Setting.target_occupancy_Taxi)), "Target usage for Taxis. The mod will change ticket prices try to reach this usage target." },
-                //{ m_Setting.GetOptionDescLocaleID(nameof(Setting.standard_ticket_Taxi)), "Standard minimum fee. Vanilla value is 10." },
-                //{ m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_increase_Taxi)), "Maximum fee increase. Taxi fee will increase at peak hours to generate more revenue and discourage cims to use taxi at rush hours." },
-                //{ m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_discount_Taxi)), "Maximum fee decrease. Taxi fee will decrease at off-peak hours to attract more passengers." },
-
-
                 { m_Setting.GetEnumValueLocaleID(Setting.UpdateFreqEnum.min22), "22" },
                 { m_Setting.GetEnumValueLocaleID(Setting.UpdateFreqEnum.min45), "45" },
                 { m_Setting.GetEnumValueLocaleID(Setting.UpdateFreqEnum.min90), "90" },
 
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.Button)), "Reset Settings" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.Button)), $"Reset settings to default values" },
-
-                { m_Setting.GetOptionGroupLocaleID(Setting.ShipGroup), "Ship Settings" },
-                { m_Setting.GetOptionGroupLocaleID(Setting.AirplaneGroup), "Airplane Settings" },
                 
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Ship)), "Disable Ship Dynamic Pricing & Frequency" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Ship)), "Target Occupancy" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Ship)), "Standard Ticket Price" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Ship)), "Max. Ticket Increase" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Ship)), "Max. Ticket Discount" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Ship)), "Max. Vehicle Increase" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Ship)), "Min. Vehicle Decrease" },
-
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Airplane)), "Disable Airplane Dynamic Pricing & Frequency" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Airplane)), "Target Occupancy" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Airplane)), "Standard Ticket Price" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Airplane)), "Max. Ticket Increase" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Airplane)), "Max. Ticket Discount" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Airplane)), "Max. Vehicle Increase" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Airplane)), "Min. Vehicle Decrease" },
                 // --- SmartTransit chirp-related settings ------------------------------------
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_chirps)), "Disable Chirps" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_chirps)),  "Do not send in-game chirp notifications from Smart Transportation." },

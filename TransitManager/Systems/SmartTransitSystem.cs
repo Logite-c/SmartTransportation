@@ -64,7 +64,7 @@ namespace SmartTransportation
         private float BusyStopEnterPct = Mod.m_Setting.busy_stop_enter_pct/100f;
         // Hysteresis clear level (e.g., 0.55 => clear once waiting < 55% of capacity)
         private float BusyStopExitPct = Mod.m_Setting.busy_stop_exit_pct/100f;
-        private int maxAlertsPerCycle = 2; // implement a per-cycle limit to avoid overwhelming the player
+        private int maxAlertsPerCycle = 1; // implement a per-cycle limit to avoid overwhelming the player
 
         // Optional: gate all chirps with one toggle.
         private bool ChirpsEnabled = !Mod.m_Setting.disable_chirps;
@@ -265,9 +265,28 @@ namespace SmartTransportation
                         }
                     }
 
-                    if (EntityManager.TryGetComponent<VehicleModel>(trans, out vehicleModel))
+                    DynamicBuffer<VehicleModel> vehicleModels;
+                    if (EntityManager.TryGetBuffer<VehicleModel>(trans, /*isReadOnly:*/ true, out vehicleModels) && vehicleModels.Length > 0)
                     {
-                        if (EntityManager.TryGetComponent<PublicTransportVehicleData>(vehicleModel.m_PrimaryPrefab, out publicTransportVehicleData))
+                        // Pick the first valid primary prefab from the buffer
+                        Entity primaryPrefab = Entity.Null;
+                        for (int i = 0; i < vehicleModels.Length; i++)
+                        {
+                            var vm = vehicleModels[i];
+                            if (vm.m_PrimaryPrefab != Entity.Null)
+                            {
+                                primaryPrefab = vm.m_PrimaryPrefab;
+                                break;
+                            }
+                        }
+                        // If none were explicitly set, fall back to element 0 (may still be Null; we guard below)
+                        if (primaryPrefab == Entity.Null)
+                            primaryPrefab = vehicleModels[0].m_PrimaryPrefab;
+
+                        if (primaryPrefab == Entity.Null)
+                            continue; // nothing usable on this line yet
+
+                        if (EntityManager.TryGetComponent<PublicTransportVehicleData>(primaryPrefab, out publicTransportVehicleData))
                         {
                             DynamicBuffer<RouteVehicle> vehicles = EntityManager.GetBuffer<RouteVehicle>(trans);
 
@@ -276,35 +295,28 @@ namespace SmartTransportation
                             for (int i = 0; i < vehicles.Length; i++)
                             {
                                 RouteVehicle vehicle = vehicles[i];
-                                DynamicBuffer<Passenger> pax;
-                                if (EntityManager.TryGetBuffer<Passenger>(vehicle.m_Vehicle, true, out pax))
+                                if (EntityManager.TryGetBuffer<Passenger>(vehicle.m_Vehicle, true, out var pax))
                                 {
-                                    if (pax.Length == 0)
-                                    {
-                                        emptyVehicles++;
-                                    }
+                                    if (pax.Length == 0) emptyVehicles++;
                                     passengers += pax.Length;
                                 }
                             }
 
                             int passenger_capacity = publicTransportVehicleData.m_PassengerCapacity;
                             int num2 = 1;
-                            TrainEngineData trainEgineData;
-                            if (EntityManager.TryGetComponent<TrainEngineData>(vehicleModel.m_PrimaryPrefab, out trainEgineData))
+                            if (EntityManager.TryGetComponent<TrainEngineData>(primaryPrefab, out var trainEgineData))
                             {
                                 num2 = trainEgineData.m_Count.x;
-                                DynamicBuffer<VehicleCarriageElement> vehicleCarriage;
-                                if (EntityManager.TryGetBuffer<VehicleCarriageElement>(vehicleModel.m_PrimaryPrefab, true, out vehicleCarriage))
+
+                                if (EntityManager.TryGetBuffer<VehicleCarriageElement>(primaryPrefab, true, out var vehicleCarriage))
                                 {
                                     for (int i = 0; i < vehicleCarriage.Length; i++)
                                     {
-                                        VehicleCarriageElement carriage = vehicleCarriage[i];
-
-                                        PublicTransportVehicleData ptvd = EntityManager.GetComponentData<PublicTransportVehicleData>(carriage.m_Prefab);
+                                        var carriage = vehicleCarriage[i];
+                                        var ptvd = EntityManager.GetComponentData<PublicTransportVehicleData>(carriage.m_Prefab);
                                         passenger_capacity += carriage.m_Count.x * ptvd.m_PassengerCapacity;
                                     }
                                 }
-
                             }
                             if (num2 > 0)
                             {
