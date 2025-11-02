@@ -260,6 +260,9 @@ namespace SmartTransportation
                             case TransportType.Airplane:
                                 if (Mod.m_Setting.disable_Airplane) continue;
                                 break;
+                            case TransportType.Ferry:
+                                if (Mod.m_Setting.disable_Airplane) continue;
+                                break;
                             default:
                                 break;
                         }
@@ -444,6 +447,14 @@ namespace SmartTransportation
                                         maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Airplane / 100f));
                                         minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Airplane / 100f));
                                         standard_ticket = Mod.m_Setting.standard_ticket_Airplane;
+                                        break;
+                                    case TransportType.Ferry:
+                                        occupancy = Mod.m_Setting.target_occupancy_Ferry;
+                                        max_discount = Mod.m_Setting.max_ticket_discount_Ferry;
+                                        max_increase = Mod.m_Setting.max_ticket_increase_Ferry;
+                                        maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Ferry / 100f));
+                                        minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Ferry / 100f));
+                                        standard_ticket = Mod.m_Setting.standard_ticket_Ferry;
                                         break;
 
                                     default:
