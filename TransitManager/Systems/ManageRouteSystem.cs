@@ -406,7 +406,131 @@ namespace SmartTransportation.Bridge
             return result;
         }
 
+        public struct RouteInfoForUI
+        {
+            public int routeNumber;
+            public string routeName;
+            public string transportType;
+            public string ruleName;
+            public Colossal.Hash128 ruleId;
+        }
 
+        public void SetRouteRuleForRoute(string transportTypeString, int routeNumber, Colossal.Hash128? ruleIdOrNull)
+        {
+            var entities = EntityManager.GetAllEntities(Allocator.Temp);
+            try
+            {
+                foreach (var ent in entities)
+                {
+                    if (!EntityManager.HasComponent<TransportLine>(ent))
+                        continue;
+                    if (!EntityManager.HasComponent<RouteNumber>(ent))
+                        continue;
+                    if (!EntityManager.HasComponent<PrefabRef>(ent))
+                        continue;
+
+                    var rn = EntityManager.GetComponentData<RouteNumber>(ent);
+                    if (rn.m_Number != routeNumber)
+                        continue;
+
+                    var prefabRef = EntityManager.GetComponentData<PrefabRef>(ent);
+                    if (!EntityManager.HasComponent<TransportLineData>(prefabRef.m_Prefab))
+                        continue;
+
+                    var tld = EntityManager.GetComponentData<TransportLineData>(prefabRef.m_Prefab);
+                    var tTypeString = tld.m_TransportType.ToString();
+
+                    if (!string.Equals(tTypeString, transportTypeString, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    // We found the route; apply the rule
+                    if (ruleIdOrNull.HasValue)
+                    {
+                        SetRouteRule(ent, ruleIdOrNull.Value);
+                    }
+                    else
+                    {
+                        // Disabled => clear / set to "Disabled" rule, however you handle that today
+                        //ClearRouteRule(ent);
+                    }
+
+                    break;
+                }
+            }
+            finally
+            {
+                entities.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Collects all transit routes and returns simple DTOs for the UI.
+        /// </summary>
+        public RouteInfoForUI[] GetRoutesForUI()
+        {
+            var result = new List<RouteInfoForUI>();
+
+            var entities = EntityManager.GetAllEntities(Allocator.Temp);
+            try
+            {
+                foreach (var ent in entities)
+                {
+                    // Only consider entities that are actual transport lines
+                    if (!EntityManager.HasComponent<TransportLine>(ent))
+                        continue;
+
+                    if (!EntityManager.HasComponent<RouteNumber>(ent))
+                        continue;
+
+                    if (!EntityManager.HasComponent<PrefabRef>(ent))
+                        continue;
+
+                    var routeNumber = EntityManager.GetComponentData<RouteNumber>(ent);
+                    var prefabRef = EntityManager.GetComponentData<PrefabRef>(ent);
+
+                    if (!EntityManager.HasComponent<TransportLineData>(prefabRef.m_Prefab))
+                        continue;
+
+                    var transportLineData = EntityManager.GetComponentData<TransportLineData>(prefabRef.m_Prefab);
+                    var transportType = transportLineData.m_TransportType;
+
+                    // Determine rule currently assigned to this route
+                    var (ruleId, ruleName) = GetRouteRule(ent);
+
+                    // Fallback to "Disabled" if nothing came back
+                    if (string.IsNullOrEmpty(ruleName))
+                    {
+                        if (RuleNames.TryGetValue(new Colossal.Hash128((uint)disabled_int_id, 0, 0, 0),
+                                                  out var disabledName))
+                        {
+                            ruleName = disabledName;
+                        }
+                        else
+                        {
+                            ruleName = "Disabled";
+                        }
+                    }
+
+                    // Route "display" name – you can improve this later if you have a nicer name source
+                    string routeName = $"{transportType} Route {routeNumber.m_Number}";
+
+                    result.Add(new RouteInfoForUI
+                    {
+                        routeNumber = routeNumber.m_Number,
+                        routeName = routeName,
+                        transportType = transportType.ToString(),
+                        ruleName = ruleName,
+                        ruleId = ruleId
+                    });
+                }
+            }
+            finally
+            {
+                entities.Dispose();
+            }
+
+            return result.ToArray();
+        }
 
 
         protected override void OnUpdate()

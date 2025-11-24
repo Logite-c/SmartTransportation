@@ -1,0 +1,145 @@
+/* Cohtml-friendly (no grid/1fr/min()/gap/inset/disabled selector) */
+
+:root {
+    --panel-bg: rgba(24, 28, 33, 0.92);
+    --panel-br: 1px solid rgba(255, 255, 255, 0.08);
+    --text: #e6e8ea;
+    --muted: #b7bec7;
+    --accent: #62b0ff;
+}
+
+.smarttrans-root {
+    position: fixed;
+    top: 72px;
+    right: 24px;
+    z-index: 1000;
+    pointer-events: auto;
+    color: var(--text);
+    font-size: 14px;
+}
+
+.smarttrans-panel {
+    background: var(--panel-bg);
+    border: var(--panel-br);
+    width: 820px; /* avoid min() */
+    max-width: 96vw;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+
+.smarttrans-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    display: flex; /* no grid */
+    align-items: center; /* no place-items */
+    justify-content: space-between;
+}
+
+.smarttrans-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.smarttrans-tabs {
+    display: flex;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+}
+
+.smarttrans-tab {
+    border: 1px solid transparent;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-right: 8px;
+    background: rgba(255,255,255,.06); /* no background shorthand */
+    color: var(--text);
+}
+
+.smarttrans-tab--active {
+    border-color: rgba(255,255,255,.14);
+    background-color: rgba(98,176,255,.15);
+}
+
+.smarttrans-body {
+    padding: 12px;
+    display: flex;
+}
+
+.smarttrans-left {
+    flex: 1 1 auto;
+    padding-right: 12px;
+}
+
+.smarttrans-right {
+    width: 280px;
+    flex: 0 0 280px;
+    border-left: 1px solid rgba(255,255,255,.06);
+    padding-left: 12px;
+}
+
+.smarttrans-sectionTitle {
+    margin: 8px 0 6px;
+    font-weight: 700;
+}
+
+.smarttrans-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.smarttrans-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+}
+
+.smarttrans-actions {
+    display: flex;
+}
+
+.smarttrans-btn {
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.12);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-right: 8px;
+}
+
+.smarttrans-btn--danger {
+    border-color: rgba(255, 89, 89, .4);
+    background: rgba(255, 89, 89, .15);
+}
+
+.smarttrans-field {
+    margin: 6px 0;
+}
+
+.smarttrans-label {
+    display: block;
+    color: var(--muted);
+    margin-bottom: 4px;
+}
+
+.smarttrans-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: var(--text);
+    outline: none; /* outline unsupported but harmless; keep simple */
+}
+
+.smarttrans-footer {
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid rgba(255,255,255,.06);
+    padding: 10px 12px;
+}

@@ -20,6 +20,7 @@ namespace SmartTransportation
 
         public static Setting m_Setting;
         public static readonly string harmonyID = "SmartTransportation";
+        public static readonly string Id = harmonyID;
 
         // Mods Settings Folder
         public static string SettingsFolder = Path.Combine(EnvPath.kUserDataPath, "ModsSettings", nameof(SmartTransportation));
@@ -52,14 +53,12 @@ namespace SmartTransportation
             // Disable original systems
             World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<Game.Policies.ModifiedSystem>().Enabled = false;
 
-
             updateSystem.UpdateAt<SmartTransportation.Systems.ModifiedSystem>(SystemUpdatePhase.Modification4);
             updateSystem.UpdateAt<SmartTransitSystem>(SystemUpdatePhase.GameSimulation);
-            //updateSystem.UpdateAt<SmartTaxiSystem>(SystemUpdatePhase.GameSimulation);
-
             updateSystem.UpdateAt<ManageRouteSystem>(SystemUpdatePhase.GameSimulation);
-            
-            
+            updateSystem.UpdateAt<SmartTransportationUISystem>(SystemUpdatePhase.UIUpdate);
+
+
 
             //Harmony
             var harmony = new Harmony(harmonyID);
