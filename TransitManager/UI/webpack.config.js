@@ -26,7 +26,7 @@ module.exports = {
   mode: "production",
   stats: "none",
   entry: {
-    [MOD.id]: "./index.tsx",
+    [MOD.id]: "./src/index.tsx",
   },
   externalsType: "window",
   externals: {

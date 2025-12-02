@@ -10,6 +10,7 @@ using SmartTransportation.Bridge;
 using SmartTransportation.Systems;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Unity.Entities;
 
 namespace SmartTransportation
@@ -24,6 +25,8 @@ namespace SmartTransportation
 
         // Mods Settings Folder
         public static string SettingsFolder = Path.Combine(EnvPath.kUserDataPath, "ModsSettings", nameof(SmartTransportation));
+        public static string Name => Assembly.GetExecutingAssembly().GetName().Name;
+        public static string modName => nameof(SmartTransportation);
         readonly public static int kComponentVersion = 1;
         public void OnLoad(UpdateSystem updateSystem)
         {
@@ -56,7 +59,9 @@ namespace SmartTransportation
             updateSystem.UpdateAt<SmartTransportation.Systems.ModifiedSystem>(SystemUpdatePhase.Modification4);
             updateSystem.UpdateAt<SmartTransitSystem>(SystemUpdatePhase.GameSimulation);
             updateSystem.UpdateAt<ManageRouteSystem>(SystemUpdatePhase.GameSimulation);
-            updateSystem.UpdateAt<SmartTransportationUISystem>(SystemUpdatePhase.UIUpdate);
+            updateSystem.UpdateAt<AllRoutesUISystem>(SystemUpdatePhase.UIUpdate);
+            updateSystem.UpdateAt<CustomRulesUISystem>(SystemUpdatePhase.UIUpdate);
+            updateSystem.UpdateAt<AddCustomRuleUISystem>(SystemUpdatePhase.UIUpdate);
 
 
 

@@ -37,7 +37,7 @@ namespace SmartTransportation.Bridge
             { new Colossal.Hash128((uint)TransportType.Subway,0,0,0), TransportType.Subway.ToString()},
             { new Colossal.Hash128((uint)TransportType.Ship,0,0,0), TransportType.Ship.ToString()},
             { new Colossal.Hash128((uint)TransportType.Airplane,0,0,0), TransportType.Airplane.ToString()},
-
+            { new Colossal.Hash128((uint)TransportType.Ferry,0,0,0), TransportType.Ferry.ToString()},
         };
 
 
@@ -121,7 +121,15 @@ namespace SmartTransportation.Bridge
                     maxAdj = Mod.m_Setting.max_vahicles_adj_Airplane;
                     minAdj = Mod.m_Setting.min_vahicles_adj_Airplane;
                 }
-
+                else if (ruleName == "Ferry")
+                {
+                    occ = Mod.m_Setting.target_occupancy_Ferry;
+                    ticket = Mod.m_Setting.standard_ticket_Ferry;
+                    inc = Mod.m_Setting.max_ticket_increase_Ferry;
+                    dec = Mod.m_Setting.max_ticket_discount_Ferry;
+                    maxAdj = Mod.m_Setting.max_vahicles_adj_Ferry;
+                    minAdj = Mod.m_Setting.min_vahicles_adj_Ferry;
+                }
                 else
                 {
                     continue; // Unknown built-in name
@@ -215,6 +223,7 @@ namespace SmartTransportation.Bridge
                         TransportType.Train => Mod.m_Setting.disable_Train,
                         TransportType.Ship => Mod.m_Setting.disable_Ship,
                         TransportType.Airplane => Mod.m_Setting.disable_Airplane,
+                        TransportType.Ferry => Mod.m_Setting.disable_Ferry,
                         _ => true
                     };
 
@@ -229,13 +238,22 @@ namespace SmartTransportation.Bridge
                 }
             }
 
+            // 1) Built-in rules first
             if (RuleNames.TryGetValue(ruleId, out var ruleName))
             {
                 return (ruleId, ruleName);
-            } else
-            {
-                return default;
             }
+
+            // 2) Try to resolve as a custom rule
+            var custom = GetCustomRule(ruleId);
+            if (!string.IsNullOrEmpty(custom.Item2)) // Item2 = ruleName
+            {
+                return (custom.ruleId, custom.Item2);
+            }
+
+            // 3) Nothing found => let caller fall back to "Disabled"
+            return default;
+
         }
 
 
@@ -260,6 +278,7 @@ namespace SmartTransportation.Bridge
                 TransportType.Train => Mod.m_Setting.disable_Train,
                 TransportType.Ship => Mod.m_Setting.disable_Ship,
                 TransportType.Airplane => Mod.m_Setting.disable_Airplane,
+                TransportType.Ferry => Mod.m_Setting.disable_Ferry,
                 _ => true
             };
 
@@ -361,6 +380,16 @@ namespace SmartTransportation.Bridge
 
         public static void RemoveCustomRule(Colossal.Hash128 ruleId)
         {
+            // Do not remove built-in rules (Bus, Tram, Train, etc.)
+            if (RuleNames.ContainsKey(ruleId))
+            {
+                if (Mod.log != null && RuleNames.TryGetValue(ruleId, out var name))
+                {
+                    Mod.log.Info($"[ManageRouteSystem] Ignoring delete for built-in rule '{name}'");
+                }
+                return;
+            }
+
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             EntityQuery query = entityManager.CreateEntityQuery(typeof(CustomRule));
             var entities = query.ToEntityArray(Allocator.Temp);
@@ -375,6 +404,7 @@ namespace SmartTransportation.Bridge
                 }
             }
         }
+
 
 
         public (Colossal.Hash128, string, int, int, int, int, int, int)[] GetCustomRules()
@@ -468,6 +498,21 @@ namespace SmartTransportation.Bridge
         /// </summary>
         public RouteInfoForUI[] GetRoutesForUI()
         {
+            // Try to get the game's NameSystem so we can use custom route names
+            NameSystem nameSystem = null;
+            try
+            {
+                var world = World.DefaultGameObjectInjectionWorld;
+                if (world != null)
+                {
+                    nameSystem = world.GetExistingSystemManaged<NameSystem>();
+                }
+            }
+            catch
+            {
+                // If this fails (e.g. wrong context), we'll just fall back to default names
+            }
+
             var result = new List<RouteInfoForUI>();
 
             var entities = EntityManager.GetAllEntities(Allocator.Temp);
@@ -511,8 +556,23 @@ namespace SmartTransportation.Bridge
                         }
                     }
 
-                    // Route "display" name – you can improve this later if you have a nicer name source
-                    string routeName = $"{transportType} Route {routeNumber.m_Number}";
+                    // Route "display" name:
+                    // 1) Prefer the user's custom name (from NameSystem)
+                    // 2) Fall back to a simple "Type Line X" pattern
+                    string routeName;
+
+                    // Try to use the game’s custom name for this route, if any
+                    if (nameSystem != null &&
+                        nameSystem.TryGetCustomName(ent, out var customName) &&
+                        !string.IsNullOrWhiteSpace(customName))
+                    {
+                        routeName = customName;
+                    }
+                    else
+                    {
+                        // Fallback pattern when there's no custom name
+                        routeName = $"{transportType} Line {routeNumber.m_Number}";
+                    }
 
                     result.Add(new RouteInfoForUI
                     {
@@ -522,6 +582,7 @@ namespace SmartTransportation.Bridge
                         ruleName = ruleName,
                         ruleId = ruleId
                     });
+
                 }
             }
             finally

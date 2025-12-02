@@ -21,9 +21,9 @@ using UnityEngine.Scripting;
 using PolicyEventInfo = Game.Policies.ModifiedSystem.PolicyEventInfo;
 using PolicyRange = Game.Policies.ModifiedSystem.PolicyRange;
 
-namespace SmartTransportation.Systems;
-
-public partial class ModifiedSystem : GameSystemBase
+namespace SmartTransportation.Systems
+{
+  public partial class ModifiedSystem : GameSystemBase
 {
     [BurstCompile]
     private struct ModifyPolicyJob : IJobChunk
@@ -424,4 +424,7 @@ public partial class ModifiedSystem : GameSystemBase
     public ModifiedSystem()
     {
     }
+}  
 }
+
+

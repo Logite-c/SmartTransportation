@@ -1,0 +1,128 @@
+.panel {
+    background-color: var(--panelColorNormal);
+    color: #ffffff;
+    height: 500rem;
+    width: 500rem;
+}
+
+.header {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    height: 20rem;
+    text-transform: none;
+}
+
+.headerText {
+    margin-right: 15rem;
+    font-size: 100%;
+}
+
+.noRoutes {
+    padding: 8rem;
+}
+
+.routesList {
+    padding: 8rem;
+    max-height: 100%;
+    overflow-y: auto;
+}
+
+/* --- Headers row --- */
+
+.titles {
+    display: flex;
+    flex-direction: row;
+}
+
+.titles div {
+    padding-left: 10rem;
+    font-size: 15rem;
+    display: flex;
+    flex-basis: 0;
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+/* Route Name header: give it most space */
+.titles div:first-child {
+    justify-content: flex-start;
+    flex-grow: 3;
+    white-space: nowrap;
+}
+
+/* Transport Type header: more space, no wrap */
+.titles div:nth-child(2) {
+    justify-content: flex-end;
+    flex-grow: 2;
+    white-space: nowrap;
+}
+
+/* Route Number header: hidden */
+.titles div:nth-child(3) {
+    display: none;
+}
+
+/* Assigned Rule header: more space, no wrap */
+.titles div:nth-child(4) {
+    justify-content: flex-end;
+    flex-grow: 2;
+    white-space: nowrap;
+}
+
+/* --- Route rows --- */
+
+.routeItem {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+
+    &:hover {
+        background-color: var(--hoverColorBright);
+    }
+}
+
+.selectedRouteItem {
+    background-color: var(--selectedColor);
+
+    &:hover {
+        background-color: var(--selectedColor);
+    }
+}
+
+.routeItem div {
+    padding-left: 10rem;
+    font-size: 15rem;
+    display: flex;
+    flex-basis: 0;
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+/* Route Name cell: widest + ellipsis */
+.routeItem div:first-child {
+    justify-content: flex-start;
+    flex-grow: 3;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Transport Type cell: more space */
+.routeItem div:nth-child(2) {
+    justify-content: flex-end;
+    flex-grow: 2;
+}
+
+/* Route Number cell: hidden */
+.routeItem div:nth-child(3) {
+    display: none;
+}
+
+/* Assigned Rule cell: more space */
+.routeItem div:nth-child(4) {
+    justify-content: flex-end;
+    flex-grow: 2;
+}

@@ -74,42 +74,6 @@
 	<ItemGroup>
 		<None Include="$(ModPropsFile)" Link="Properties\Mod.props" />
 		<None Include="$(ModTargetsFile)" Link="Properties\Mod.targets" />
-		<None Include="UI\node_modules\.bin\acorn" />
-		<None Include="UI\node_modules\.bin\acorn.cmd" />
-		<None Include="UI\node_modules\.bin\acorn.ps1" />
-		<None Include="UI\node_modules\.bin\browserslist" />
-		<None Include="UI\node_modules\.bin\browserslist.cmd" />
-		<None Include="UI\node_modules\.bin\browserslist.ps1" />
-		<None Include="UI\node_modules\.bin\cssesc" />
-		<None Include="UI\node_modules\.bin\cssesc.cmd" />
-		<None Include="UI\node_modules\.bin\cssesc.ps1" />
-		<None Include="UI\node_modules\.bin\envinfo" />
-		<None Include="UI\node_modules\.bin\envinfo.cmd" />
-		<None Include="UI\node_modules\.bin\envinfo.ps1" />
-		<None Include="UI\node_modules\.bin\eslint" />
-		<None Include="UI\node_modules\.bin\eslint.cmd" />
-		<None Include="UI\node_modules\.bin\eslint.ps1" />
-		<None Include="UI\node_modules\.bin\flat" />
-		<None Include="UI\node_modules\.bin\flat.cmd" />
-		<None Include="UI\node_modules\.bin\flat.ps1" />
-		<None Include="UI\node_modules\.bin\import-local-fixture" />
-		<None Include="UI\node_modules\.bin\import-local-fixture.cmd" />
-		<None Include="UI\node_modules\.bin\import-local-fixture.ps1" />
-		<None Include="UI\node_modules\.bin\js-yaml" />
-		<None Include="UI\node_modules\.bin\js-yaml.cmd" />
-		<None Include="UI\node_modules\.bin\js-yaml.ps1" />
-		<None Include="UI\node_modules\.bin\json5" />
-		<None Include="UI\node_modules\.bin\json5.cmd" />
-		<None Include="UI\node_modules\.bin\json5.ps1" />
-		<None Include="UI\node_modules\.bin\loose-envify" />
-		<None Include="UI\node_modules\.bin\loose-envify.cmd" />
-		<None Include="UI\node_modules\.bin\loose-envify.ps1" />
-		<None Include="UI\node_modules\.bin\nanoid" />
-		<None Include="UI\node_modules\.bin\nanoid.cmd" />
-		<None Include="UI\node_modules\.bin\nanoid.ps1" />
-		<None Include="UI\node_modules\.bin\node-which" />
-		<None Include="UI\node_modules\.bin\node-which.cmd" />
-		<None Include="UI\node_modules\.bin\node-which.ps1" />
 		<None Include="UI\node_modules\.bin\resolve" />
 		<None Include="UI\node_modules\.bin\resolve.cmd" />
 		<None Include="UI\node_modules\.bin\resolve.ps1" />
