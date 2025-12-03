@@ -1,4 +1,5 @@
 ﻿
+using System;
 using Unity.Collections;
 using Unity.Entities;
 
@@ -135,5 +136,50 @@ namespace SmartTransportation.Bridge
         {
             return ManageRouteSystem.GetCustomRule(ruleId);
         }
+
+        /// <summary>
+        /// Returns simple route info for UI consumption.
+        /// </summary>
+        public static (int routeNumber, string routeName, string transportType, string ruleName, Colossal.Hash128 ruleId)[] GetRoutesForUI()
+        {
+            var routes = ManageRouteSystem.GetRoutesForUI();
+            if (routes == null || routes.Length == 0)
+                return Array.Empty<(int, string, string, string, Colossal.Hash128)>();
+
+            var result = new (int, string, string, string, Colossal.Hash128)[routes.Length];
+            for (int i = 0; i < routes.Length; i++)
+            {
+                var r = routes[i];
+                result[i] = (r.routeNumber, r.routeName, r.transportType, r.ruleName, r.ruleId);
+            }
+
+            return result;
+        }
+
+        public static void SetRouteRuleForRoute(string transportType, int routeNumber, string ruleIdString)
+        {
+            if (ManageRouteSystem == null)
+            {
+                return;
+            }
+
+            Colossal.Hash128? ruleId = null;
+
+            if (!string.IsNullOrEmpty(ruleIdString))
+            {
+                try
+                {
+                    ruleId = new Colossal.Hash128(ruleIdString);
+                }
+                catch
+                {
+                    // bad ruleIdString, treat as Disabled
+                    ruleId = null;
+                }
+            }
+
+            ManageRouteSystem.SetRouteRuleForRoute(transportType, routeNumber, ruleId);
+        }
     }
+
 }

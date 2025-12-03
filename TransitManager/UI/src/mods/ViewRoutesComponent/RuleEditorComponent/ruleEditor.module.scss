@@ -1,0 +1,66 @@
+.panel{
+    background-color: var(--panelColorNormal);
+    color: #ffffff;
+    width: 290rem;
+    height: 190rem;
+    
+}
+
+.header {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  height: 20rem;
+  text-transform: none;
+}
+
+.headerText {
+  margin-right: 15rem;
+  font-size: 90%;
+}
+
+.ruleEditorRow{
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+.ruleEditorSection{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 2rem 12rem;
+    justify-content: space-between;
+}
+.ruleEditorLabel{
+   max-width: 50%;
+  margin-right: 15rem;
+  font-size: 14rem;
+  font-weight: bold;
+  coh-font-fit-mode: shrink;
+}
+.ruleEditorContent{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  flex: 1;
+  font-size: 14rem;
+}
+
+
+
+
+.districtDropdownRow {
+  margin-bottom: 5rem;
+}
+
+.selectedDistrictDropdownItem {
+  background-color: rgb(0, 0, 0, 1);
+}
+.ruleEditorContainer > div:nth-child(5) {
+    height: 50rem;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}

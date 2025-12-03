@@ -10,7 +10,7 @@
 	<LongDescription>
 This mod automates ticket prices and number of vehicles in transit routes. This will make your transit system smarter and able to adapt to peak and off-peak hours.
 
-**New on Version 0.4:** Added Chirp messages to notify players when stops are busy.
+**New on Version 0.5:** Added UI to configure custom rules.
 
 ## Transit Section
 
@@ -29,8 +29,14 @@ The settings tab has some settings that affects all transit modes. These include
 * **Target Occupancy Threshold:** When the mod compares a route occupancy with the target occupancy, it will consider the threshold within the target when making a decision. Default value is 10% but can be changed if desired.
 * **Write Transit Information to Log:** This option will write information such as occupancy and number of vehicles for each route to the log every time the mod evaluates a route. This is useful for debugging and understanding why the mod is picking certain ticket price or number of vehicles for each route.
 
+## Custom Rules
+
+There is an UI that allows the user to configure custom rules. There is a botton on the top left screen on the game access it.
+
+In the UI, it is possible to View Custom Rules, Add Custom Rules and View Routes and Assign Rules. Custom rules can be deleted in the View Custom Rules panel and to assign a rule to route just click on a route on the View Routes / Assign Rules panel. 
 ## Credits and Mod Compatibility
 
+Thank you to Bruceyboy24804 for helping with the UI.
 The min/max vehicle settings were based on the work developed by SonnyX on the Transport Policy Adjuster Mod. That mod also adjusts min/max vehicles but in a different way. This mod is not compatible with it.
 	</LongDescription>
 	<!--Thumbnail-->
@@ -38,18 +44,19 @@ The min/max vehicle settings were based on the work developed by SonnyX on the T
 	<!--Screenshot, can be set multiple times-->
 	<Screenshot Value="Properties/screenshot.png" />
 	<Screenshot Value="Properties/chirpmessage.png" />
+	<Screenshot Value="Properties/customrules.png" />
 	<!--Tag, can be set multiple times-->
 	<Tag Value="" />
 	<!--Link to the forum post where the mod can be discussed-->
 	<ForumLink Value="https://forum.paradoxplaza.com/forum/threads/smart-transportation-mod.1704128/" />
 	<!--Version of the mod-->
-	<ModVersion Value="0.4.3" />
+	<ModVersion Value="0.5.1" />
 	<!--Recommended version of the base game to use the mod-->
-	<GameVersion Value="1.3.*" />
+	<GameVersion Value="1.4.*" />
 	<!--Dependency for the mod, can be set multiple times-->
 	<Dependency Id="121812" />
 	<ChangeLog>
-* Added ferry
+* Fixed incorrect published branch from GitHub
 	</ChangeLog>
 	<!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon-->
 	<ExternalLink Type="github" Url="https://github.com/ruzbeh0/SmartTransportation" />

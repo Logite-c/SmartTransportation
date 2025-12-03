@@ -261,7 +261,7 @@ namespace SmartTransportation
                                 if (Mod.m_Setting.disable_Airplane) continue;
                                 break;
                             case TransportType.Ferry:
-                                if (Mod.m_Setting.disable_Airplane) continue;
+                                if (Mod.m_Setting.disable_Ferry) continue;
                                 break;
                             default:
                                 break;
