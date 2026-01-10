@@ -1,14 +1,8 @@
 ﻿using Colossal.Entities;
 using Colossal.Serialization.Entities;
 using Game;
-using Game.Agents;
-using Game.Buildings;
-using Game.Common;
-using Game.Companies;
 using Game.Pathfind;
-using Game.Policies;
 using Game.Prefabs;
-using Game.Prefabs.Effects;
 using Game.Routes;
 using Game.Simulation;
 using Game.UI.InGame;
@@ -16,21 +10,11 @@ using Game.Vehicles;
 using SmartTransportation.Bridge;
 using SmartTransportation.Components;
 using SmartTransportation.Localization;
-using SmartTransportation.Systems;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.Design;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Entities.UniversalDelegates;
 using Unity.Mathematics;
-using UnityEngine.Rendering;
-using static Game.Input.UIInputActionCollection;
-using static Game.Prefabs.TriggerPrefabData;
-using static Game.Rendering.OverlayRenderSystem;
-using static Game.Rendering.Utilities.State;
-using static Game.UI.InGame.VehiclesSection;
-using static UnityEngine.GraphicsBuffer;
 using RouteModifierInitializeSystem = SmartTransportation.Systems.RouteModifierInitializeSystem;
 
 namespace SmartTransportation
@@ -78,8 +62,10 @@ namespace SmartTransportation
         [ReadOnly] private ComponentLookup<PrefabRef> m_PrefabRefs;
         [ReadOnly] private ComponentLookup<RouteNumber> m_RouteNumbers;
         [ReadOnly] private ComponentLookup<TransportLineData> m_TransportLineDatas;
-        [ReadOnly] private ComponentLookup<PublicTransportVehicleData> m_PublicTransportVehicleDatas;
-        [ReadOnly] private ComponentLookup<TrainEngineData> m_TrainEngineDatas;
+        //Changed to use EntityManager directly for latest data
+        //[ReadOnly] private ComponentLookup<PublicTransportVehicleData> m_PublicTransportVehicleDatas;
+        //[ReadOnly] private ComponentLookup<TrainEngineData> m_TrainEngineDatas;
+        //[ReadOnly] private BufferLookup<VehicleCarriageElement> m_VehicleCarriageElements;
         [ReadOnly] private ComponentLookup<WaitingPassengers> m_WaitingPassengers;
         [ReadOnly] private ComponentLookup<Connected> m_Connecteds;
         [ReadOnly] private ComponentLookup<RouteRule> m_RouteRules;
@@ -89,7 +75,7 @@ namespace SmartTransportation
         [ReadOnly] private BufferLookup<RouteSegment> m_RouteSegments;
         [ReadOnly] private BufferLookup<RouteModifier> m_RouteModifiers;
         [ReadOnly] private BufferLookup<Passenger> m_Passengers;
-        [ReadOnly] private BufferLookup<VehicleCarriageElement> m_VehicleCarriageElements;
+
 
         // CustomChirps alert state
         private readonly Dictionary<Entity, bool> _busyStopAlerted = new Dictionary<Entity, bool>();
@@ -118,8 +104,10 @@ namespace SmartTransportation
             m_PrefabRefs = SystemAPI.GetComponentLookup<PrefabRef>(true);
             m_RouteNumbers = SystemAPI.GetComponentLookup<RouteNumber>(true);
             m_TransportLineDatas = SystemAPI.GetComponentLookup<TransportLineData>(true);
-            m_PublicTransportVehicleDatas = SystemAPI.GetComponentLookup<PublicTransportVehicleData>(true);
-            m_TrainEngineDatas = SystemAPI.GetComponentLookup<TrainEngineData>(true);
+            //Changed to use EntityManager directly for latest data
+            //m_PublicTransportVehicleDatas = SystemAPI.GetComponentLookup<PublicTransportVehicleData>(true);
+            //m_TrainEngineDatas = SystemAPI.GetComponentLookup<TrainEngineData>(true);
+            //m_VehicleCarriageElements = SystemAPI.GetBufferLookup<VehicleCarriageElement>(true);
             m_WaitingPassengers = SystemAPI.GetComponentLookup<WaitingPassengers>(true);
             m_Connecteds = SystemAPI.GetComponentLookup<Connected>(true);
             m_RouteRules = SystemAPI.GetComponentLookup<RouteRule>(true);
@@ -129,7 +117,6 @@ namespace SmartTransportation
             m_RouteSegments = SystemAPI.GetBufferLookup<RouteSegment>(true);
             m_RouteModifiers = SystemAPI.GetBufferLookup<RouteModifier>(true);
             m_Passengers = SystemAPI.GetBufferLookup<Passenger>(true);
-            m_VehicleCarriageElements = SystemAPI.GetBufferLookup<VehicleCarriageElement>(true);
 
             _query = GetEntityQuery(new EntityQueryDesc()
             {
@@ -227,8 +214,10 @@ namespace SmartTransportation
             m_PrefabRefs.Update(this);
             m_RouteNumbers.Update(this);
             m_TransportLineDatas.Update(this);
-            m_PublicTransportVehicleDatas.Update(this);
-            m_TrainEngineDatas.Update(this);
+            //Changed to use EntityManager directly for latest data
+            //m_PublicTransportVehicleDatas.Update(this);
+            //m_TrainEngineDatas.Update(this);
+            //m_VehicleCarriageElements.Update(this);
             m_WaitingPassengers.Update(this);
             m_Connecteds.Update(this);
             m_RouteRules.Update(this);
@@ -238,15 +227,14 @@ namespace SmartTransportation
             m_RouteSegments.Update(this);
             m_RouteModifiers.Update(this);
             m_Passengers.Update(this);
-            m_VehicleCarriageElements.Update(this);
 
             // 3. Query all Transport Line Entities
             using var transports = _query.ToEntityArray(Allocator.Temp);
 
-            // if (Mod.m_Setting.debug)
-            // {
-            //     Mod.log.Info($"[SmartTransit] OnUpdate Start. Total Routes Found: {transports.Length}");
-            // }
+            if (Mod.m_Setting.debug)
+            {
+                Mod.log.Info($"[SmartTransit] OnUpdate Start. Total Routes Found: {transports.Length}");
+            }
 
             int alertsPostedThisCycle = 0;
 
@@ -262,49 +250,66 @@ namespace SmartTransportation
             RouteData data = new RouteData();
 
             // 1. Capacity Calculation
+            // Iterate through vehicle models to find a valid prefab that contains transport data
             if (m_VehicleModels.TryGetBuffer(routeEntity, out var vehicleModels) && vehicleModels.Length > 0)
             {
-                Entity primaryPrefab = Entity.Null;
+                Entity selectedPrefab = Entity.Null;
+
+                // Try to find the first prefab that actually has PublicTransportVehicleData component
                 for (int i = 0; i < vehicleModels.Length; i++)
                 {
-                    if (vehicleModels[i].m_PrimaryPrefab != Entity.Null)
+                    Entity candidate = vehicleModels[i].m_PrimaryPrefab;
+                    if (candidate != Entity.Null && EntityManager.HasComponent<PublicTransportVehicleData>(candidate))
                     {
-                        primaryPrefab = vehicleModels[i].m_PrimaryPrefab;
+                        selectedPrefab = candidate;
                         break;
                     }
                 }
-                if (primaryPrefab == Entity.Null) primaryPrefab = vehicleModels[0].m_PrimaryPrefab;
 
-                if (primaryPrefab != Entity.Null && m_PublicTransportVehicleDatas.TryGetComponent(primaryPrefab, out var publicTransportVehicleData))
+                // Fallback to the first element if no specific valid prefab is found
+                if (selectedPrefab == Entity.Null)
+                    selectedPrefab = vehicleModels[0].m_PrimaryPrefab;
+
+                // Calculate total capacity
+                if (selectedPrefab != Entity.Null && EntityManager.TryGetComponent(selectedPrefab, out PublicTransportVehicleData baseData))
                 {
-                    int calculatedCapacity = publicTransportVehicleData.m_PassengerCapacity;
-                    int engineCount = 1;
+                    // A. Start with the base capacity of the engine/lead vehicle
+                    int totalCapacity = baseData.m_PassengerCapacity;
 
-                    if (m_TrainEngineDatas.TryGetComponent(primaryPrefab, out var trainEngineData))
+                    // B. Add capacity from attached carriages (if any)
+                    if (EntityManager.HasBuffer<VehicleCarriageElement>(selectedPrefab) &&
+                        EntityManager.TryGetBuffer(selectedPrefab, true, out DynamicBuffer<VehicleCarriageElement> buffer))
                     {
-                        engineCount = trainEngineData.m_Count.x;
-                        if (m_VehicleCarriageElements.TryGetBuffer(primaryPrefab, out var vehicleCarriage))
+                        for (int i = 0; i < buffer.Length; i++)
                         {
-                            for (int i = 0; i < vehicleCarriage.Length; i++)
+                            var carriage = buffer[i];
+                            if (EntityManager.TryGetComponent(carriage.m_Prefab, out PublicTransportVehicleData carriageData))
                             {
-                                var carriage = vehicleCarriage[i];
-                                if (m_PublicTransportVehicleDatas.HasComponent(carriage.m_Prefab))
-                                {
-                                    var ptvd = m_PublicTransportVehicleDatas[carriage.m_Prefab];
-                                    calculatedCapacity += carriage.m_Count.x * ptvd.m_PassengerCapacity;
-                                }
+                                // Add: Carriage Count * Carriage Capacity
+                                totalCapacity += carriage.m_Count.x * carriageData.m_PassengerCapacity;
                             }
                         }
                     }
 
-                    if (engineCount > 0) calculatedCapacity *= engineCount;
-                    data.PassengerCapacityPerVehicle = calculatedCapacity;
+                    // C. Multiply by TrainEngineData count (e.g., for multiple coupled units)
+                    // This must be done after summing up the base and carriages.
+                    if (EntityManager.TryGetComponent(selectedPrefab, out TrainEngineData engineData))
+                    {
+                        totalCapacity *= engineData.m_Count.x;
+                    }
+
+                    data.PassengerCapacityPerVehicle = totalCapacity;
                 }
                 else
                 {
-                    // if(Mod.m_Setting.debug) Mod.log.Info($"[DEBUG] Capacity Calc Failed. PrimaryPrefab is Null or Missing Data. Models count: {vehicleModels.Length}");
+                    if (Mod.m_Setting.debug)
+                    {
+                        Mod.log.Info($"[DEBUG] Capacity Calc Failed. No valid prefab with PublicTransportVehicleData found for Route Entity: {routeEntity.Index}");
+                        Mod.log.Info($"         Maybe cargo vehicle or missing data?");
+                    }
                 }
             }
+
             if (data.PassengerCapacityPerVehicle == 0) data.PassengerCapacityPerVehicle = 0;
 
             // 2. Vehicle Statistics
@@ -337,7 +342,6 @@ namespace SmartTransportation
                     if (m_WaitingPassengers.TryGetComponent(wp.m_Waypoint, out var waiting))
                     {
                         data.TotalWaiting += waiting.m_Count;
-
                         if (waiting.m_Count > data.MaxStopWaiting)
                         {
                             data.MaxStopWaiting = waiting.m_Count;
@@ -350,11 +354,11 @@ namespace SmartTransportation
                 }
             }
 
-            // 4. Capacity Ratio
-            int totalCapacity = data.CurrentVehicles * data.PassengerCapacityPerVehicle;
-            if (totalCapacity > 0)
+            // 4. Capacity Ratio Calculation
+            int calculatedTotalCap = data.CurrentVehicles * data.PassengerCapacityPerVehicle;
+            if (calculatedTotalCap > 0)
             {
-                data.CurrentCapacityRatio = (float)(data.TotalPassengers + data.TotalWaiting) / totalCapacity;
+                data.CurrentCapacityRatio = (float)(data.TotalPassengers + data.TotalWaiting) / calculatedTotalCap;
             }
 
             return data;
@@ -368,14 +372,14 @@ namespace SmartTransportation
             var routeNumber = m_RouteNumbers[routeEntity];
             var transportLineData = m_TransportLineDatas[prefabRef.m_Prefab];
 
-            // if (Mod.m_Setting.debug)
-            //     Mod.log.Info($"--- Processing Route #{routeNumber.m_Number} ({transportLineData.m_TransportType}) ---");
+            if (Mod.m_Setting.debug)
+                Mod.log.Info($"--- Processing Route #{routeNumber.m_Number} ({transportLineData.m_TransportType}) ---");
 
             bool hasCustomRule = m_RouteRules.TryGetComponent(routeEntity, out var routeRule);
 
             if (hasCustomRule && routeRule.customRule == default)
             {
-                // if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: Invalid Custom Rule.");
+                if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: Invalid Custom Rule.");
                 return;
             }
 
@@ -383,20 +387,20 @@ namespace SmartTransportation
 
             if (config.OccupancyTarget == 0)
             {
-                // if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: Occupancy Target is 0 (Disabled in settings).");
+                if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: Occupancy Target is 0 (Disabled in settings).");
                 return;
             }
 
             RouteData data = GetRouteData(routeEntity, transportLineData);
 
-            // if (Mod.m_Setting.debug)
-            // {
-            //     Mod.log.Info($"   -> Data: Vehicles={data.CurrentVehicles} (Empty: {data.EmptyVehicles}), CapPerVehicle={data.PassengerCapacityPerVehicle}, Passengers={data.TotalPassengers}, Waiting={data.TotalWaiting}");
-            // }
+            if (Mod.m_Setting.debug)
+            {
+                Mod.log.Info($"   -> Data: Vehicles={data.CurrentVehicles} (Empty: {data.EmptyVehicles}), CapPerVehicle={data.PassengerCapacityPerVehicle}, Passengers={data.TotalPassengers}, Waiting={data.TotalWaiting}");
+            }
 
             if (data.CurrentVehicles == 0)
             {
-                //  if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: No vehicles active on route.");
+                if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: No vehicles active on route.");
                 return;
             }
 
@@ -419,10 +423,10 @@ namespace SmartTransportation
                 weightedCapacityRatio = (data.TotalPassengers + (data.TotalWaiting * Mod.m_Setting.waiting_time_weight)) / (float)totalCapacity;
             }
 
-            // if (Mod.m_Setting.debug)
-            // {
-            //     Mod.log.Info($"   -> Calc: TotalCap={totalCapacity}, WeightedRatio={weightedCapacityRatio:F2}, StableDuration={stableDuration}");
-            // }
+            if (Mod.m_Setting.debug)
+            {
+                Mod.log.Info($"   -> Calc: TotalCap={totalCapacity}, WeightedRatio={weightedCapacityRatio:F2}, StableDuration={stableDuration}");
+            }
 
             // Alert System
             if (ChirpsEnabled && CustomChirpsBridge.IsAvailable && data.BusiestStop != Entity.Null && alertsPostedThisCycle < maxAlertsPerCycle)
@@ -452,7 +456,7 @@ namespace SmartTransportation
                                 ("waiting", data.MaxStopWaiting.ToString()));
 
                             CustomChirpsBridge.PostChirp(msg, DepartmentAccountBridge.Transportation, data.BusiestStop, T2WStrings.T("chirp.mod_name"));
-                            // if (Mod.m_Setting.debug) Mod.log.Info($"   -> ALERT: Chirp posted for busy stop.");
+                            if (Mod.m_Setting.debug) Mod.log.Info($"   -> ALERT: Chirp posted for busy stop.");
                             alertsPostedThisCycle++;
                         }
                         _busyStopAlerted[data.BusiestStop] = true;
@@ -467,13 +471,18 @@ namespace SmartTransportation
                 }
             }
 
+            // =========================================================
+            // Ticket Price & Vehicle Count Adjustment Logic
+            // =========================================================
+
+            float totalLoad = data.TotalPassengers + (data.TotalWaiting * Mod.m_Setting.waiting_time_weight);
 
             int ticketPrice = transportLine.m_TicketPrice;
-            int currentVehicles = data.CurrentVehicles;
+            if (ticketPrice == 0 && config.StandardTicketPrice > 0) ticketPrice = config.StandardTicketPrice;
             int oldTicketPrice = ticketPrice;
 
+            // Min/Max Vehicle Calculation
             PolicySliderData policySliderData = m_PolicySliderDatas[m_VehicleCountPolicy];
-
             int maxVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.max, defaultVehicleInterval, stableDuration, m_RouteModifierDatas, m_VehicleCountPolicy, m_PolicySliderDatas);
             int minVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.min, defaultVehicleInterval, stableDuration, m_RouteModifierDatas, m_VehicleCountPolicy, m_PolicySliderDatas);
 
@@ -481,112 +490,109 @@ namespace SmartTransportation
             int oldVehicles = setVehicles;
 
             if (hasCustomRule)
-            {
                 minVehicles = (int)Math.Round(minVehicles * (1 - config.MinVehiclesAdj / 100f));
-            }
             else
             {
                 maxVehicles = (int)Math.Round(maxVehicles * (1 + config.MaxVehiclesAdj / 100f));
                 minVehicles = (int)Math.Round(minVehicles * (1 - config.MinVehiclesAdj / 100f));
             }
-
             if (minVehicles < 1) minVehicles = 1;
 
             float targetRatio = config.OccupancyTarget / 100f;
-            float threshold = Mod.m_Setting.threshold / 100f;
+            float margin = Mod.m_Setting.threshold / 100f;
+            float upperLimit = targetRatio + margin;
+            float lowerLimit = targetRatio - margin;
 
-            // if (Mod.m_Setting.debug)
-            // {
-            //     Mod.log.Info($"   -> Limits: MinVeh={minVehicles}, MaxVeh={maxVehicles}, TargetRatio={targetRatio:F2}, Threshold={threshold:F2}");
-            // }
-
-            // ==================================================================================
-            // Case A: Demand is too low (Reduce Vehicles/Price)
-            // ==================================================================================
-            if (weightedCapacityRatio < (targetRatio - threshold))
+            // [Step A] Ticket Price Adjustment
+            if (weightedCapacityRatio > (targetRatio + 2 * margin))
             {
-                setVehicles--; // Decrease vehicle count
-                // if (Mod.m_Setting.debug) Mod.log.Info($"   -> Action: Demand LOW. Decreasing vehicle.");
-
-                // 1. Price is too high -> return to standard
                 if (ticketPrice > config.StandardTicketPrice)
                 {
-                    ticketPrice--;
-                    // if (Mod.m_Setting.debug) Mod.log.Info($"   -> Action: Price is too high. Returning to standard: {ticketPrice}");
+                    int maxPrice = (int)Math.Round((100 + config.MaxTicketIncrease) * config.StandardTicketPrice / 100f);
+                    if (ticketPrice < maxPrice) ticketPrice++;
                 }
-                // 2. Very low demand -> discount price
-                else if (weightedCapacityRatio < (targetRatio - 2 * threshold))
-                {
-                    int minPriceLimit = (int)Math.Round((100 - config.MaxTicketDiscount) * config.StandardTicketPrice / 100f);
-
-                    if (ticketPrice > minPriceLimit)
-                    {
-                        ticketPrice--;
-                        // if (Mod.m_Setting.debug) Mod.log.Info($"   -> Action: Very LOW demand. Discounting Price to {ticketPrice}");
-                    }
-                }
+                else if (ticketPrice == config.StandardTicketPrice) ticketPrice++;
             }
-            // ==================================================================================
-            // Case B: Demand is too high (Increase Vehicles/Price)
-            // ==================================================================================
-            else if (weightedCapacityRatio > (targetRatio + threshold))
+            else if (ticketPrice < config.StandardTicketPrice && weightedCapacityRatio < (targetRatio - 2 * margin))
             {
-                setVehicles++; // Increase vehicle count
-                // if (Mod.m_Setting.debug) Mod.log.Info($"   -> Action: Demand HIGH. Increasing vehicle.");
-
-                // 1. Price is too low -> return to standard (Fix for 0 price issue)
-                if (ticketPrice < config.StandardTicketPrice)
-                {
-                    ticketPrice++;
-                    // if (Mod.m_Setting.debug) Mod.log.Info($"   -> Action: Price too low ({ticketPrice}). Raising towards standard ({config.StandardTicketPrice}).");
-                }
-                // 2. Very high demand -> increase price (surge pricing)
-                else if (weightedCapacityRatio > (targetRatio + 2 * threshold))
-                {
-                    int maxPriceLimit = (int)Math.Round((100 + config.MaxTicketIncrease) * config.StandardTicketPrice / 100f);
-
-                    if (ticketPrice < maxPriceLimit)
-                    {
-                        ticketPrice++;
-                        // if (Mod.m_Setting.debug) Mod.log.Info($"   -> Action: Very HIGH demand. Increasing Price to {ticketPrice}");
-                    }
-                }
-                // 3. Price is standard but demand is high -> start increasing
-                else if (ticketPrice == config.StandardTicketPrice)
-                {
-                    ticketPrice++;
-                    // if (Mod.m_Setting.debug) Mod.log.Info($"   -> Action: Raising price above standard: {ticketPrice}");
-                }
+                int minPrice = (int)Math.Round((100 - config.MaxTicketDiscount) * config.StandardTicketPrice / 100f);
+                if (ticketPrice > minPrice) ticketPrice--;
             }
-            else
+            else if (weightedCapacityRatio < (targetRatio - margin) && ticketPrice == config.StandardTicketPrice)
             {
-                //  if (Mod.m_Setting.debug) Mod.log.Info($"   -> Action: Demand STABLE. No changes.");
+                ticketPrice--;
             }
 
-            if (setVehicles > maxVehicles) setVehicles = maxVehicles;
-            if (setVehicles < minVehicles) setVehicles = minVehicles;
+            // [Step B] Calculate Required Vehicles
+            int singleVehicleCap = data.PassengerCapacityPerVehicle;
 
-            if (data.EmptyVehicles / (float)currentVehicles > 0.3f)
+            if (singleVehicleCap > 0)
+            {
+                float effectiveTargetRatio = targetRatio;
+                if (targetRatio == 0)
+                {
+                    if (Mod.m_Setting.debug)
+                    {
+                        Mod.log.Info($"   -> Warning:  Divide by zero may occur due to target ratio being 0.");
+                        Mod.log.Info($"  -> Calculate effective target ratio as 1% to avoid errors.");
+                    }
+                    effectiveTargetRatio = math.max(targetRatio, 0.01f);
+                }
+
+                // Calculate needed vehicles based on capacity ratio
+                if (weightedCapacityRatio > upperLimit)
+                {
+                    float needed = totalLoad / (singleVehicleCap * effectiveTargetRatio);
+                    setVehicles = (int)Math.Ceiling(needed);
+                }
+                else if (weightedCapacityRatio < lowerLimit)
+                {
+                    float needed = totalLoad / (singleVehicleCap * effectiveTargetRatio);
+                    setVehicles = (int)Math.Floor(needed);
+                }
+            }
+
+            // [Step C] Rate Limiting
+            // Limit the number of vehicles that can be adjusted in one update cycle
+            float limitPercent = Mod.m_Setting.max_adjustable_ongoing_unit / 100f;
+            int maxChangeAllowed = (int)Math.Max(1, Math.Round(oldVehicles * limitPercent));
+
+            if (setVehicles > oldVehicles + maxChangeAllowed)
+                setVehicles = oldVehicles + maxChangeAllowed;
+            else if (setVehicles < oldVehicles - maxChangeAllowed)
+                setVehicles = oldVehicles - maxChangeAllowed;
+
+            // [Step D] Clamp to Min/Max
+            setVehicles = math.clamp(setVehicles, minVehicles, maxVehicles);
+
+            // Prevent reducing vehicles if too many are empty
+            if (setVehicles < oldVehicles && data.EmptyVehicles / (float)oldVehicles > 0.3f)
             {
                 setVehicles = oldVehicles;
-                // if (Mod.m_Setting.debug) Mod.log.Info($"   -> Abort: Too many empty vehicles ({data.EmptyVehicles}/{currentVehicles}). Reverting vehicle count.");
             }
 
-            if (config.StandardTicketPrice == 0) ticketPrice = 0;
-
-            // Apply Changes
+            // Apply Changes if needed
             if (oldVehicles != setVehicles || oldTicketPrice != ticketPrice)
             {
                 int isFree = ticketPrice > 0 ? 1 : 0;
                 m_PoliciesUISystem.SetPolicy(routeEntity, m_TicketPricePolicy, isFree != 0, (float)ticketPrice);
 
-                float newInterval = 100f / (stableDuration / (defaultVehicleInterval * setVehicles));
-                m_PoliciesUISystem.SetPolicy(routeEntity, m_VehicleCountPolicy, true, newInterval);
+                if (setVehicles > 0)
+                {
+                    float newInterval = 100f / (stableDuration / (defaultVehicleInterval * setVehicles));
+                    m_PoliciesUISystem.SetPolicy(routeEntity, m_VehicleCountPolicy, true, newInterval);
+                }
 
-                //  if (Mod.m_Setting.debug) 
-                //     Mod.log.Info($"   -> APPLIED: Vehicles {oldVehicles}->{setVehicles}, Price {oldTicketPrice}->{ticketPrice}");
+                if (Mod.m_Setting.debug)
+                {
+                    Mod.log.Info($"Route:{routeNumber.m_Number} ({transportLineData.m_TransportType}) | " +
+                                 $"Ratio: {weightedCapacityRatio:P1} (Target: {targetRatio:P0}) | " +
+                                 $"Veh: {oldVehicles}->{setVehicles} (Limit +/-{maxChangeAllowed}) | " +
+                                 $"Price: {oldTicketPrice}->{ticketPrice}");
+                }
             }
         }
+
 
         private RouteConfig GetRouteConfig(TransportType type, bool hasCustomRule, RouteRule routeRule)
         {
@@ -670,5 +676,6 @@ namespace SmartTransportation
             }
             return config;
         }
+
     }
 }

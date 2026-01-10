@@ -130,5 +130,8 @@
 	<Target Name="BuildUI" AfterTargets="AfterBuild">
 		<Exec Command="npm run build" WorkingDirectory="$(ProjectDir)/UI" />
 	</Target>
-
+	<!--Override Language Version to avoid build issues-->
+	<PropertyGroup>
+		<LangVersion>12.0</LangVersion>
+	</PropertyGroup>
 </Project>
