@@ -104,6 +104,7 @@ namespace SmartTransportation
             disable_chirps = false;
             busy_stop_enter_pct = 70;
             busy_stop_exit_pct = 55;
+            max_adjustable_ongoing_unit = 20;
 
         }
 
@@ -341,6 +342,11 @@ namespace SmartTransportation
         [SettingsUISection(SettingsSection, SettingsGroup)]
         public float waiting_time_weight { get; set; }
 
+        // Max adjustable ongoing unit percentage for vehicle count adjustment
+        [SettingsUISlider(min = 5, max = 80, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(SettingsSection, SettingsGroup)]
+        public float max_adjustable_ongoing_unit { get; set; }
+
         [SettingsUISlider(min = 5, max = 25, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
         [SettingsUISection(SettingsSection, SettingsGroup)]
         public float threshold { get; set; }
@@ -506,14 +512,17 @@ namespace SmartTransportation
 
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.Button)), "Reset Settings" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.Button)), $"Reset settings to default values" },
-                
+
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_adjustable_ongoing_unit)), "Max Vehicle Adjustment Limit" },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_adjustable_ongoing_unit)), $"Limits the maximum percentage of vehicles that can be added or removed in a single update cycle based on the current fleet size. This prevents drastic fluctuations in vehicle count." },
+
                 // --- SmartTransit chirp-related settings ------------------------------------
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_chirps)), "Disable Chirps" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_chirps)),  "Do not send in-game chirp notifications from Smart Transportation." },
-                
+
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.busy_stop_enter_pct)), "Busy Stop Alert Threshold" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.busy_stop_enter_pct)),  "Trigger a chirp when the busiest stop’s waiting passengers reach this percentage of a typical vehicle’s capacity." },
-                
+
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.busy_stop_exit_pct)),  "Busy Stop Alert Clear Level" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.busy_stop_exit_pct)),   "Clear (stop) the alert once the waiting passengers fall below this percentage of a typical vehicle’s capacity." },
 
@@ -526,7 +535,7 @@ namespace SmartTransportation
                 // Variables: line_label, waiting, enter_pct, vehicle_cap
                 { "chirp.stop_busy",
                   "{line_label}: Stop {LINK_1} is very busy — {waiting} passengers waiting." },
-                
+
 
 
 

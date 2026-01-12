@@ -124,12 +124,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="Lib.Harmony" Version="2.2.2" />
-	  <PackageReference Include="Microsoft.AspNet.SignalR.Core" Version="2.4.3" />
+		<PackageReference Include="Lib.Harmony" Version="2.2.2" />
+		<PackageReference Include="Microsoft.AspNet.SignalR.Core" Version="2.4.3" />
 	</ItemGroup>
 	<Target Name="BuildUI" AfterTargets="AfterBuild">
 		<Exec Command="npm run build" WorkingDirectory="$(ProjectDir)/UI" />
 	</Target>
-
-
 </Project>
