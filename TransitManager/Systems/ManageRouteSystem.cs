@@ -19,6 +19,8 @@ using System.Text.RegularExpressions;
 using Unity.Collections;
 using Unity.Entities;
 using static Unity.Collections.Unicode;
+using Colossal.Serialization.Entities;
+
 
 namespace SmartTransportation.Bridge
 {
@@ -56,6 +58,58 @@ namespace SmartTransportation.Bridge
 
             RequireForUpdate(entityQuery);
         }
+
+        protected override void OnGameLoaded(Context serializationContext)
+        {
+            base.OnGameLoaded(serializationContext);
+
+            RemoveDuplicateCustomRuleEntities();
+            SyncDefaultRulesFromSettings();
+
+            // This system only needs to run on load.
+            firstUpdate = true;
+            Enabled = false;
+        }
+
+        private void RemoveDuplicateCustomRuleEntities()
+        {
+            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<CustomRule>());
+            using var entities = query.ToEntityArray(Allocator.Temp);
+            using var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
+
+            var seen = new HashSet<Colossal.Hash128>();
+
+            // Destroy any duplicate entities with the same ruleId.
+            for (int i = 0; i < rules.Length; i++)
+            {
+                var id = rules[i].ruleId;
+                if (seen.Add(id))
+                    continue;
+
+                EntityManager.DestroyEntity(entities[i]);
+            }
+        }
+
+        protected override void OnGamePreload(Purpose purpose, GameMode mode)
+        {
+            base.OnGamePreload(purpose, mode);
+
+            // We’re about to load/start a city. Clear any rules from the previously loaded city.
+            ClearAllCustomRules();
+
+            // Ensure we resync defaults for the next city after it finishes loading.
+            firstUpdate = false;
+            Enabled = true;
+        }
+
+        private void ClearAllCustomRules()
+        {
+            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<SmartTransportation.Components.CustomRule>());
+            EntityManager.DestroyEntity(query);
+
+            Mod.log.Info("[ManageRouteSystem] Cleared CustomRule entities on GamePreload.");
+        }
+
 
         private void SyncDefaultRulesFromSettings()
         {
@@ -206,7 +260,8 @@ namespace SmartTransportation.Bridge
             if (EntityManager.TryGetComponent<RouteRule>(routeEntity, out RouteRule routeRule))
             {
                 ruleId = routeRule.customRule;
-            } else
+            }
+            else
             {
                 // Try to get prefab info for transport type fallback
                 if (EntityManager.TryGetComponent<PrefabRef>(routeEntity, out PrefabRef prefab))
@@ -230,7 +285,7 @@ namespace SmartTransportation.Bridge
 
                     if (!isDisabled)
                     {
-                        Colossal.Hash128 defaultId = new Colossal.Hash128((uint)transportType,0,0,0);
+                        Colossal.Hash128 defaultId = new Colossal.Hash128((uint)transportType, 0, 0, 0);
                         string defaultName = RuleNames.TryGetValue(defaultId, out var name) ? name : transportType.ToString();
 
                         return (defaultId, defaultName);
@@ -373,7 +428,7 @@ namespace SmartTransportation.Bridge
         {
             var newRuleEntity = EntityManager.CreateEntity(typeof(CustomRule));
             CustomRule customRule = new CustomRule("Unnamed", 0, 0, 0, 0, 0, 0);
-            EntityManager.SetComponentData(newRuleEntity,customRule);
+            EntityManager.SetComponentData(newRuleEntity, customRule);
 
             return customRule.ruleId; // Return the generated ruleId
         }
