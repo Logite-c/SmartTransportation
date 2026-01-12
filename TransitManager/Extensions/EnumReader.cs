@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Time2Work.Extensions
+namespace SmartTransportation.Extensions
 {
     using Colossal.UI.Binding;
 

@@ -8,7 +8,7 @@ namespace SmartTransportation.Extensions
 
     public abstract partial class ExtendedInfoSectionBase : InfoSectionBase
     {
-        public ValueBindingHelper<T> CreateBinding<T>(string key, T initialValue)
+        public ValueBindingHelper<T> CreateBinding<T>(string key, T initialValue, Action<int> onPropertySelected)
         {
             var helper = new ValueBindingHelper<T>(new(Mod.Id, key, initialValue, new GenericUIWriter<T>()));
 
