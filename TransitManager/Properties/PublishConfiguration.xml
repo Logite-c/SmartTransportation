@@ -56,7 +56,7 @@
 	<!--Dependency for the mod, can be set multiple times-->
 	<Dependency Id="121812" />
 	<ChangeLog>
-		* Fixed bug that was keeping the same custom rules from a previous city when loading a new citys
+		* Fixed bug that was keeping the same custom rules from a previous city when loading a new city
 	</ChangeLog>
 	<!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon-->
 	<ExternalLink Type="github" Url="https://github.com/ruzbeh0/SmartTransportation" />

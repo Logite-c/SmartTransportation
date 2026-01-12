@@ -1,11 +1,11 @@
 using Colossal.Logging;
 using Colossal.UI.Binding;
 using Game.UI;
+using Newtonsoft.Json;
 using SmartTransportation.Bridge;
 using SmartTransportation.Extensions;
 using System;
 using Colossal;
-using SmartTransportation.Extensions;
 
 namespace SmartTransportation.Systems
 {

@@ -1,14 +1,7 @@
-﻿using Colossal.Entities;
-using Colossal.Serialization.Entities;
+﻿using Colossal.Serialization.Entities;
 using Game;
-using Game.Agents;
-using Game.Buildings;
-using Game.Common;
-using Game.Companies;
 using Game.Pathfind;
-using Game.Policies;
 using Game.Prefabs;
-using Game.Prefabs.Effects;
 using Game.Routes;
 using Game.Simulation;
 using Game.UI.InGame;
@@ -16,70 +9,110 @@ using Game.Vehicles;
 using SmartTransportation.Bridge;
 using SmartTransportation.Components;
 using SmartTransportation.Localization;
-using SmartTransportation.Systems;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.Design;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Entities.UniversalDelegates;
 using Unity.Mathematics;
-using UnityEngine.Rendering;
-using static Game.Input.UIInputActionCollection;
-using static Game.Prefabs.TriggerPrefabData;
-using static Game.Rendering.OverlayRenderSystem;
-using static Game.Rendering.Utilities.State;
-using static Game.UI.InGame.VehiclesSection;
-using static UnityEngine.GraphicsBuffer;
 using RouteModifierInitializeSystem = SmartTransportation.Systems.RouteModifierInitializeSystem;
 
 namespace SmartTransportation
 {
     public partial class SmartTransitSystem : GameSystemBase
     {
-        private Dictionary<Entity, TransportLine> _transportToData = new Dictionary<Entity, TransportLine>();
+        private struct RouteConfig
+        {
+            public int OccupancyTarget;
+            public int MaxTicketDiscount;
+            public int MaxTicketIncrease;
+            public int StandardTicketPrice;
+            public float MinVehiclesAdj;
+            public float MaxVehiclesAdj;
+        }
+        private struct RouteData
+        {
+            public int CurrentVehicles;
+            public int EmptyVehicles;
+            public int TotalPassengers;
+            public int TotalWaiting;
+            public int PassengerCapacityPerVehicle;
+            public int MaxStopWaiting;
+            public Entity BusiestStop;
+            public float CurrentCapacityRatio;
+        }
 
         private EntityQuery _query;
+        private EntityQuery m_ConfigQuery;
+
         private Entity m_TicketPricePolicy;
         private Entity m_VehicleCountPolicy;
-        private EntityQuery m_ConfigQuery;
+
         private PrefabSystem m_PrefabSystem;
         private PoliciesUISystem m_PoliciesUISystem;
-        [ReadOnly]
-        private ComponentLookup<VehicleTiming> m_VehicleTimings;
-        [ReadOnly]
-        private ComponentLookup<PathInformation> m_PathInformations;
-        [ReadOnly]
-        public BufferLookup<RouteModifierData> m_RouteModifierDatas;
-        [ReadOnly]
-        public ComponentLookup<PolicySliderData> m_PolicySliderDatas;
+        private ManageRouteSystem m_ManageRouteSystem;
 
-        // --- CustomChirps alert state ----------------------------------------------
-        // Track which STOPs we’ve already alerted for (avoids spam). We clear when load drops.
+        [ReadOnly] private ComponentLookup<VehicleTiming> m_VehicleTimings;
+        [ReadOnly] private ComponentLookup<PathInformation> m_PathInformations;
+        [ReadOnly] public BufferLookup<RouteModifierData> m_RouteModifierDatas;
+        [ReadOnly] public ComponentLookup<PolicySliderData> m_PolicySliderDatas;
+
+        // Cached ComponentLookups for performance optimization
+        [ReadOnly] private ComponentLookup<TransportLine> m_TransportLines;
+        [ReadOnly] private ComponentLookup<PrefabRef> m_PrefabRefs;
+        [ReadOnly] private ComponentLookup<RouteNumber> m_RouteNumbers;
+        [ReadOnly] private ComponentLookup<TransportLineData> m_TransportLineDatas;
+        [ReadOnly] private ComponentLookup<PublicTransportVehicleData> m_PublicTransportVehicleDatas;
+        [ReadOnly] private ComponentLookup<TrainEngineData> m_TrainEngineDatas;
+        [ReadOnly] private ComponentLookup<WaitingPassengers> m_WaitingPassengers;
+        [ReadOnly] private ComponentLookup<Connected> m_Connecteds;
+        [ReadOnly] private ComponentLookup<RouteRule> m_RouteRules;
+        [ReadOnly] private BufferLookup<VehicleModel> m_VehicleModels;
+        [ReadOnly] private BufferLookup<RouteVehicle> m_RouteVehicles;
+        [ReadOnly] private BufferLookup<RouteWaypoint> m_RouteWaypoints;
+        [ReadOnly] private BufferLookup<RouteSegment> m_RouteSegments;
+        [ReadOnly] private BufferLookup<RouteModifier> m_RouteModifiers;
+        [ReadOnly] private BufferLookup<Passenger> m_Passengers;
+        [ReadOnly] private BufferLookup<VehicleCarriageElement> m_VehicleCarriageElements;
+
+        // CustomChirps alert state
         private readonly Dictionary<Entity, bool> _busyStopAlerted = new Dictionary<Entity, bool>();
 
-        // ---- CustomChirps capacity-based alert settings ----------------------------
-        // % of a typical vehicle's capacity that must be waiting at a stop to alert.
-        // e.g., 0.70 => chirp when waiting >= 70% of capacity.
-        private float BusyStopEnterPct = Mod.m_Setting.busy_stop_enter_pct/100f;
-        // Hysteresis clear level (e.g., 0.55 => clear once waiting < 55% of capacity)
-        private float BusyStopExitPct = Mod.m_Setting.busy_stop_exit_pct/100f;
-        private int maxAlertsPerCycle = 1; // implement a per-cycle limit to avoid overwhelming the player
-
-        // Optional: gate all chirps with one toggle.
-        private bool ChirpsEnabled = !Mod.m_Setting.disable_chirps;
+        // Alert settings
+        private float BusyStopEnterPct => Mod.m_Setting.busy_stop_enter_pct / 100f;
+        private float BusyStopExitPct => Mod.m_Setting.busy_stop_exit_pct / 100f;
+        private int maxAlertsPerCycle = 1;
+        private bool ChirpsEnabled => !Mod.m_Setting.disable_chirps;
 
 
         protected override void OnCreate()
         {
             base.OnCreate();
-            this.m_ConfigQuery = this.GetEntityQuery(ComponentType.ReadOnly<UITransportConfigurationData>());
-            this.m_PrefabSystem = this.World.GetOrCreateSystemManaged<PrefabSystem>();
-            this.m_PoliciesUISystem = this.World.GetOrCreateSystemManaged<PoliciesUISystem>();
+            m_ConfigQuery = GetEntityQuery(ComponentType.ReadOnly<UITransportConfigurationData>());
+            m_PrefabSystem = World.GetOrCreateSystemManaged<PrefabSystem>();
+            m_PoliciesUISystem = World.GetOrCreateSystemManaged<PoliciesUISystem>();
+            m_ManageRouteSystem = World.GetOrCreateSystemManaged<ManageRouteSystem>();
+
             m_VehicleTimings = SystemAPI.GetComponentLookup<VehicleTiming>(true);
-            m_PathInformations = SystemAPI.GetComponentLookup<PathInformation>(true);  
+            m_PathInformations = SystemAPI.GetComponentLookup<PathInformation>(true);
             m_RouteModifierDatas = SystemAPI.GetBufferLookup<RouteModifierData>(true);
             m_PolicySliderDatas = SystemAPI.GetComponentLookup<PolicySliderData>(true);
+
+            m_TransportLines = SystemAPI.GetComponentLookup<TransportLine>(true);
+            m_PrefabRefs = SystemAPI.GetComponentLookup<PrefabRef>(true);
+            m_RouteNumbers = SystemAPI.GetComponentLookup<RouteNumber>(true);
+            m_TransportLineDatas = SystemAPI.GetComponentLookup<TransportLineData>(true);
+            m_PublicTransportVehicleDatas = SystemAPI.GetComponentLookup<PublicTransportVehicleData>(true);
+            m_TrainEngineDatas = SystemAPI.GetComponentLookup<TrainEngineData>(true);
+            m_WaitingPassengers = SystemAPI.GetComponentLookup<WaitingPassengers>(true);
+            m_Connecteds = SystemAPI.GetComponentLookup<Connected>(true);
+            m_RouteRules = SystemAPI.GetComponentLookup<RouteRule>(true);
+            m_VehicleModels = SystemAPI.GetBufferLookup<VehicleModel>(true);
+            m_RouteVehicles = SystemAPI.GetBufferLookup<RouteVehicle>(true);
+            m_RouteWaypoints = SystemAPI.GetBufferLookup<RouteWaypoint>(true);
+            m_RouteSegments = SystemAPI.GetBufferLookup<RouteSegment>(true);
+            m_RouteModifiers = SystemAPI.GetBufferLookup<RouteModifier>(true);
+            m_Passengers = SystemAPI.GetBufferLookup<Passenger>(true);
+            m_VehicleCarriageElements = SystemAPI.GetBufferLookup<VehicleCarriageElement>(true);
 
             _query = GetEntityQuery(new EntityQueryDesc()
             {
@@ -90,14 +123,12 @@ namespace SmartTransportation
                     ComponentType.ReadOnly<PrefabRef>(),
                 }
             });
-
             RequireForUpdate(_query);
         }
 
         public override int GetUpdateInterval(SystemUpdatePhase phase)
         {
-            // One day (or month) in-game is '262144' ticks
-            return 262144 /(int) Mod.m_Setting.updateFreq;
+            return 262144 / (int)Mod.m_Setting.updateFreq;
         }
 
         protected override void OnGameLoaded(Context serializationContext)
@@ -105,497 +136,576 @@ namespace SmartTransportation
             if (this.m_ConfigQuery.IsEmptyIgnoreFilter)
                 return;
 
-            this.m_TicketPricePolicy = this.m_PrefabSystem.GetEntity((PrefabBase)this.m_PrefabSystem.GetSingletonPrefab<UITransportConfigurationPrefab>(this.m_ConfigQuery).m_TicketPricePolicy);
-            this.m_VehicleCountPolicy = this.m_PrefabSystem.GetEntity((PrefabBase)this.m_PrefabSystem.GetSingletonPrefab<UITransportConfigurationPrefab>(this.m_ConfigQuery).m_VehicleCountPolicy);
+            var prefab = this.m_PrefabSystem.GetSingletonPrefab<UITransportConfigurationPrefab>(this.m_ConfigQuery);
+            this.m_TicketPricePolicy = this.m_PrefabSystem.GetEntity((PrefabBase)prefab.m_TicketPricePolicy);
+            this.m_VehicleCountPolicy = this.m_PrefabSystem.GetEntity((PrefabBase)prefab.m_VehicleCountPolicy);
         }
+
         public float CalculateStableDuration(TransportLineData transportLineData, DynamicBuffer<RouteWaypoint> routeWaypoint, DynamicBuffer<RouteSegment> routeSegment)
         {
-            int num = 0;
+            int startIndex = 0;
             for (int index = 0; index < routeWaypoint.Length; ++index)
             {
-                if (this.m_VehicleTimings.HasComponent(routeWaypoint[index].m_Waypoint))
+                if (m_VehicleTimings.HasComponent(routeWaypoint[index].m_Waypoint))
                 {
-                    num = index;
+                    startIndex = index;
                     break;
                 }
             }
+
             float stableDuration = 0.0f;
             for (int index = 0; index < routeWaypoint.Length; ++index)
             {
-                int2 a = (int2)(num + index);
-                ++a.y;
-                a = math.select(a, a - routeWaypoint.Length, a >= routeWaypoint.Length);
-                Entity waypoint = routeWaypoint[a.y].m_Waypoint;
-                PathInformation componentData;
+                int2 currentIndices = (int2)(startIndex + index);
+                currentIndices.y++;
+                currentIndices = math.select(currentIndices, currentIndices - routeWaypoint.Length, currentIndices >= routeWaypoint.Length);
 
-                if (this.m_PathInformations.TryGetComponent(routeSegment[a.x].m_Segment, out componentData))
-                    stableDuration += componentData.m_Duration;
+                Entity waypointEntity = routeWaypoint[currentIndices.y].m_Waypoint;
 
-                if (this.m_VehicleTimings.HasComponent(waypoint))
+                if (m_PathInformations.TryGetComponent(routeSegment[currentIndices.x].m_Segment, out PathInformation pathInfo))
+                    stableDuration += pathInfo.m_Duration;
+
+                if (m_VehicleTimings.HasComponent(waypointEntity))
                     stableDuration += transportLineData.m_StopDuration;
             }
             return stableDuration;
         }
 
-        public static int CalculateVehicleCountFromAdjustment(
-        float policyAdjustment,
-        float interval,
-        float duration,
-        BufferLookup<RouteModifierData> routeModifierDatas,
-        Entity vehicleCountPolicy,
-        ComponentLookup<PolicySliderData> policySliderDatas)
+        public static int CalculateVehicleCountFromAdjustment(float policyAdjustment, float interval, float duration, BufferLookup<RouteModifierData> routeModifierDatas, Entity vehicleCountPolicy, ComponentLookup<PolicySliderData> policySliderDatas)
         {
             RouteModifier modifier = new RouteModifier();
-            foreach (RouteModifierData modifierData in routeModifierDatas[vehicleCountPolicy])
+            if (routeModifierDatas.HasBuffer(vehicleCountPolicy))
             {
-                if (modifierData.m_Type == RouteModifierType.VehicleInterval)
+                DynamicBuffer<RouteModifierData> modifiers = routeModifierDatas[vehicleCountPolicy];
+                foreach (RouteModifierData modifierData in modifiers)
                 {
-                    float modifierDelta = RouteModifierInitializeSystem.RouteModifierRefreshData.GetModifierDelta(modifierData, policyAdjustment, vehicleCountPolicy, policySliderDatas);
-                    RouteModifierInitializeSystem.RouteModifierRefreshData.AddModifierData(ref modifier, modifierData, modifierDelta);
-                    break;
+                    if (modifierData.m_Type == RouteModifierType.VehicleInterval)
+                    {
+                        float modifierDelta = RouteModifierInitializeSystem.RouteModifierRefreshData.GetModifierDelta(modifierData, policyAdjustment, vehicleCountPolicy, policySliderDatas);
+                        RouteModifierInitializeSystem.RouteModifierRefreshData.AddModifierData(ref modifier, modifierData, modifierDelta);
+                        break;
+                    }
                 }
             }
             interval += modifier.m_Delta.x;
             interval += interval * modifier.m_Delta.y;
             return TransportLineSystem.CalculateVehicleCount(interval, duration);
         }
-        public static float CalculateAdjustmentFromVehicleCount(
-       int vehicleCount,
-       float originalInterval,
-       float duration,
-       DynamicBuffer<RouteModifierData> modifierDatas,
-       PolicySliderData sliderData)
-        {
-            float vehicleInterval = TransportLineSystem.CalculateVehicleInterval(duration, vehicleCount);
-            RouteModifier modifier = new RouteModifier();
-            foreach (RouteModifierData modifierData in modifierDatas)
-            {
-                if (modifierData.m_Type == RouteModifierType.VehicleInterval)
-                {
-                    if (modifierData.m_Mode == ModifierValueMode.Absolute)
-                        modifier.m_Delta.x = vehicleInterval - originalInterval;
-                    else
-                        modifier.m_Delta.y = (-originalInterval + vehicleInterval) / originalInterval;
-                    float deltaFromModifier = RouteModifierInitializeSystem.RouteModifierRefreshData.GetDeltaFromModifier(modifier, modifierData);
-                    return RouteModifierInitializeSystem.RouteModifierRefreshData.GetPolicyAdjustmentFromModifierDelta(modifierData, deltaFromModifier, sliderData);
-                }
-            }
-            return -1f;
-        }
-
-
 
         protected override void OnUpdate()
         {
-            ManageRouteSystem manageRouteSystem = this.World.GetOrCreateSystemManaged<ManageRouteSystem>();
-
-            using (var transports = _query.ToEntityArray(Allocator.Temp))
+            // 1. Initialize Route Manager System
+            if (m_ManageRouteSystem == null)
             {
-                if (Mod.m_Setting.debug)
+                m_ManageRouteSystem = this.World.GetOrCreateSystemManaged<ManageRouteSystem>();
+            }
+
+            // 2. Update ComponentLookups
+            m_VehicleTimings.Update(this);
+            m_PathInformations.Update(this);
+            m_RouteModifierDatas.Update(this);
+            m_PolicySliderDatas.Update(this);
+
+            m_TransportLines.Update(this);
+            m_PrefabRefs.Update(this);
+            m_RouteNumbers.Update(this);
+            m_TransportLineDatas.Update(this);
+            m_PublicTransportVehicleDatas.Update(this);
+            m_TrainEngineDatas.Update(this);
+            m_WaitingPassengers.Update(this);
+            m_Connecteds.Update(this);
+            m_RouteRules.Update(this);
+            m_VehicleModels.Update(this);
+            m_RouteVehicles.Update(this);
+            m_RouteWaypoints.Update(this);
+            m_RouteSegments.Update(this);
+            m_RouteModifiers.Update(this);
+            m_Passengers.Update(this);
+            m_VehicleCarriageElements.Update(this);
+
+            // 3. Query all Transport Line Entities
+            using var transports = _query.ToEntityArray(Allocator.Temp);
+
+            if (Mod.m_Setting.debug)
+            {
+                Mod.log.Info($"[SmartTransit] OnUpdate Start. Total Routes Found: {transports.Length}");
+            }
+
+            int alertsPostedThisCycle = 0;
+
+            // 4. Iterate through each route and process logic
+            foreach (var routeEntity in transports)
+            {
+                ProcessRoute(routeEntity, ref alertsPostedThisCycle);
+            }
+        }
+
+        private RouteData GetRouteData(Entity routeEntity, TransportLineData transportLineData)
+        {
+            RouteData data = new RouteData();
+
+            // 1. Capacity Calculation
+            if (m_VehicleModels.TryGetBuffer(routeEntity, out var vehicleModels) && vehicleModels.Length > 0)
+            {
+                Entity primaryPrefab = Entity.Null;
+                for (int i = 0; i < vehicleModels.Length; i++)
                 {
-                    Mod.log.Info($"Updating {transports.Length} transit routes");
-                }
-
-                int numAlerts = 0; // track how many alerts we post this cycle
-
-                foreach (var trans in transports)
-                {
-
-                    PrefabRef prefab;
-                    TransportLineData transportLineData;
-                    TransportLine transportLine;
-                    VehicleModel vehicleModel;
-                    PublicTransportVehicleData publicTransportVehicleData;
-                    RouteNumber routeNumber;
-
-                    transportLine = EntityManager.GetComponentData<TransportLine>(trans);
-                    prefab = EntityManager.GetComponentData<PrefabRef>(trans);
-                    routeNumber = EntityManager.GetComponentData<RouteNumber>(trans);
-                    RouteRule routeRule;
-
-                    transportLineData = EntityManager.GetComponentData<TransportLineData>(prefab.m_Prefab);
-                    bool hasCustomRule = EntityManager.TryGetComponent<RouteRule>(trans, out routeRule);
-
-                    if (hasCustomRule && routeRule.customRule == default)
+                    if (vehicleModels[i].m_PrimaryPrefab != Entity.Null)
                     {
-                        if (Mod.m_Setting.debug)
+                        primaryPrefab = vehicleModels[i].m_PrimaryPrefab;
+                        break;
+                    }
+                }
+                if (primaryPrefab == Entity.Null) primaryPrefab = vehicleModels[0].m_PrimaryPrefab;
+
+                if (primaryPrefab != Entity.Null && m_PublicTransportVehicleDatas.TryGetComponent(primaryPrefab, out var publicTransportVehicleData))
+                {
+                    int calculatedCapacity = publicTransportVehicleData.m_PassengerCapacity;
+                    int engineCount = 1;
+
+                    if (m_TrainEngineDatas.TryGetComponent(primaryPrefab, out var trainEngineData))
+                    {
+                        engineCount = trainEngineData.m_Count.x;
+                        if (m_VehicleCarriageElements.TryGetBuffer(primaryPrefab, out var vehicleCarriage))
                         {
-                            Mod.log.Info($"Transport Type: {transportLineData.m_TransportType}, Route Number: {routeNumber.m_Number} - Disabled");
+                            for (int i = 0; i < vehicleCarriage.Length; i++)
+                            {
+                                var carriage = vehicleCarriage[i];
+                                if (m_PublicTransportVehicleDatas.HasComponent(carriage.m_Prefab))
+                                {
+                                    var ptvd = m_PublicTransportVehicleDatas[carriage.m_Prefab];
+                                    calculatedCapacity += carriage.m_Count.x * ptvd.m_PassengerCapacity;
+                                }
+                            }
                         }
-                        continue;
+                    }
+
+                    if (engineCount > 0) calculatedCapacity *= engineCount;
+                    data.PassengerCapacityPerVehicle = calculatedCapacity;
+                }
+                else
+                {
+                    if (Mod.m_Setting.debug) Mod.log.Info($"[DEBUG] Capacity Calc Failed. Maybe cargo vehicle?");
+                }
+            }
+            if (data.PassengerCapacityPerVehicle == 0) data.PassengerCapacityPerVehicle = 0;
+
+            // 2. Vehicle Statistics
+            if (m_RouteVehicles.HasBuffer(routeEntity))
+            {
+                var vehicles = m_RouteVehicles[routeEntity];
+                data.CurrentVehicles = vehicles.Length;
+
+                foreach (var vehicle in vehicles)
+                {
+                    if (m_Passengers.TryGetBuffer(vehicle.m_Vehicle, out var passengers))
+                    {
+                        int count = passengers.Length;
+                        data.TotalPassengers += count;
+                        if (count == 0) data.EmptyVehicles++;
                     }
                     else
                     {
-                        //Routes with custom rules will not be disabled by the settings
-                        //If some modes are disabled, continue to the next transport line
-                        switch (transportLineData.m_TransportType)
-                        {
-                            case TransportType.Bus:
-                                if (Mod.m_Setting.disable_bus)
-                                {
-                                    continue;
-                                }
-                                break;
-                            case TransportType.Tram:
-                                if (Mod.m_Setting.disable_Tram)
-                                {
-                                    continue;
-                                }
-                                break;
-                            case TransportType.Subway:
-                                if (Mod.m_Setting.disable_Subway)
-                                {
-                                    continue;
-                                }
-                                break;
-                            case TransportType.Train:
-                                if (Mod.m_Setting.disable_Train)
-                                {
-                                    continue;
-                                }
-                                break;
-                            case TransportType.Ship:
-                                if (Mod.m_Setting.disable_Ship) continue;
-                                break;
-                            case TransportType.Airplane:
-                                if (Mod.m_Setting.disable_Airplane) continue;
-                                break;
-                            case TransportType.Ferry:
-                                if (Mod.m_Setting.disable_Airplane) continue;
-                                break;
-                            default:
-                                break;
-                        }
+                        data.EmptyVehicles++;
                     }
+                }
+            }
 
-                    DynamicBuffer<VehicleModel> vehicleModels;
-                    if (EntityManager.TryGetBuffer<VehicleModel>(trans, /*isReadOnly:*/ true, out vehicleModels) && vehicleModels.Length > 0)
+            // 3. Stop Statistics
+            if (m_RouteWaypoints.HasBuffer(routeEntity))
+            {
+                var waypoints = m_RouteWaypoints[routeEntity];
+                foreach (var wp in waypoints)
+                {
+                    if (m_WaitingPassengers.TryGetComponent(wp.m_Waypoint, out var waiting))
                     {
-                        // Pick the first valid primary prefab from the buffer
-                        Entity primaryPrefab = Entity.Null;
-                        for (int i = 0; i < vehicleModels.Length; i++)
+                        data.TotalWaiting += waiting.m_Count;
+
+                        if (waiting.m_Count > data.MaxStopWaiting)
                         {
-                            var vm = vehicleModels[i];
-                            if (vm.m_PrimaryPrefab != Entity.Null)
+                            data.MaxStopWaiting = waiting.m_Count;
+                            if (m_Connecteds.TryGetComponent(wp.m_Waypoint, out var connected))
                             {
-                                primaryPrefab = vm.m_PrimaryPrefab;
-                                break;
-                            }
-                        }
-                        // If none were explicitly set, fall back to element 0 (may still be Null; we guard below)
-                        if (primaryPrefab == Entity.Null)
-                            primaryPrefab = vehicleModels[0].m_PrimaryPrefab;
-
-                        if (primaryPrefab == Entity.Null)
-                            continue; // nothing usable on this line yet
-
-                        if (EntityManager.TryGetComponent<PublicTransportVehicleData>(primaryPrefab, out publicTransportVehicleData))
-                        {
-                            DynamicBuffer<RouteVehicle> vehicles = EntityManager.GetBuffer<RouteVehicle>(trans);
-
-                            int passengers = 0;
-                            int emptyVehicles = 0;
-                            for (int i = 0; i < vehicles.Length; i++)
-                            {
-                                RouteVehicle vehicle = vehicles[i];
-                                if (EntityManager.TryGetBuffer<Passenger>(vehicle.m_Vehicle, true, out var pax))
-                                {
-                                    if (pax.Length == 0) emptyVehicles++;
-                                    passengers += pax.Length;
-                                }
-                            }
-
-                            int passenger_capacity = publicTransportVehicleData.m_PassengerCapacity;
-                            int num2 = 1;
-                            if (EntityManager.TryGetComponent<TrainEngineData>(primaryPrefab, out var trainEgineData))
-                            {
-                                num2 = trainEgineData.m_Count.x;
-
-                                if (EntityManager.TryGetBuffer<VehicleCarriageElement>(primaryPrefab, true, out var vehicleCarriage))
-                                {
-                                    for (int i = 0; i < vehicleCarriage.Length; i++)
-                                    {
-                                        var carriage = vehicleCarriage[i];
-                                        var ptvd = EntityManager.GetComponentData<PublicTransportVehicleData>(carriage.m_Prefab);
-                                        passenger_capacity += carriage.m_Count.x * ptvd.m_PassengerCapacity;
-                                    }
-                                }
-                            }
-                            if (num2 > 0)
-                            {
-                                passenger_capacity *= num2;
-                            }
-
-                            DynamicBuffer<RouteWaypoint> waypoints = EntityManager.GetBuffer<RouteWaypoint>(trans);
-                            int waiting = 0;
-
-                            // Track the busiest stop on this route
-                            int maxStopWaiting = 0;
-                            Entity busiestStop = Entity.Null;
-
-                            for (int i = 0; i < waypoints.Length; i++)
-                            {
-                                RouteWaypoint waypoint = waypoints[i];
-                                WaitingPassengers waitingPax;
-                                if (EntityManager.TryGetComponent<WaitingPassengers>(waypoint.m_Waypoint, out waitingPax))
-                                {
-                                    waiting += waitingPax.m_Count;
-                                    Connected connected;
-                                    if (EntityManager.TryGetComponent<Connected>(waypoint.m_Waypoint, out connected))
-                                    {
-                                        //Mod.log.Info($"Stop {i}: {waitingPax.m_Count} waiting");
-                                        if (waitingPax.m_Count > maxStopWaiting)
-                                        {
-                                            maxStopWaiting = waitingPax.m_Count;
-                                            busiestStop = connected.m_Connected;   // This is the clickable stop entity
-                                        }
-                                    }
-                                        
-                                }
-                            }
-
-
-                            if (vehicles.Length == 0)
-                            {
-                                continue;
-                            }
-
-                            DynamicBuffer<RouteSegment> routeSegments = EntityManager.GetBuffer<RouteSegment>(trans);
-                            DynamicBuffer<RouteModifier> routeModifier = EntityManager.GetBuffer<RouteModifier>(trans);
-
-                            float defaultVehicleInterval = transportLineData.m_DefaultVehicleInterval;
-                            float vehicleInterval = defaultVehicleInterval;
-                            RouteUtils.ApplyModifier(ref vehicleInterval, routeModifier, RouteModifierType.VehicleInterval);
-
-                            float stableDuration = CalculateStableDuration(transportLineData, waypoints, routeSegments);
-
-                            //Half weight for waiting passengers, the assumption is that when they board, a similar amount will deboard
-                            float capacity = (passengers + waiting * Mod.m_Setting.waiting_time_weight) / ((float)passenger_capacity * vehicles.Length);
-
-                            int ticketPrice = transportLine.m_TicketPrice;
-                            int oldTicketPrice = ticketPrice;
-                            int currentVehicles = vehicles.Length;
-                            PolicySliderData policySliderData = EntityManager.GetComponentData<PolicySliderData>(m_VehicleCountPolicy);
-                            int maxVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.max, defaultVehicleInterval, stableDuration, this.m_RouteModifierDatas, this.m_VehicleCountPolicy, this.m_PolicySliderDatas); ;
-                            int minVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.min, defaultVehicleInterval, stableDuration, this.m_RouteModifierDatas, this.m_VehicleCountPolicy, this.m_PolicySliderDatas); ;
-                            int setVehicles = TransportLineSystem.CalculateVehicleCount(vehicleInterval, stableDuration); ;
-                            int oldVehicles = setVehicles;
-                            int occupancy = 0;
-                            int max_discount = 0;
-                            int max_increase = 0;
-                            int standard_ticket = 0;
-
-                            if (hasCustomRule)
-                            {
-                                int maxVehiclesAdj = 0;
-                                int minVehiclesAdj = 0;
-                                string name = default;
-
-                                (_, name, occupancy, standard_ticket, max_increase, max_discount, maxVehiclesAdj, minVehiclesAdj) = manageRouteSystem.GetCustomRule(routeRule.customRule);
-                                minVehicles = (int)Math.Round(minVehicles * (1 - minVehiclesAdj / 100f));
-
-                                //Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Custom Rule:{routeRule.customRule}, Standard Ticket Price:{standard_ticket}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Empty Vehicles:{emptyVehicles}, Passengers:{passengers}, Waiting Passengers:{waiting}, Occupancy:{capacity}, Target Occupancy:{occupancy/100f}");
-                            }
-                            else
-                            {
-                                switch (transportLineData.m_TransportType)
-                                {
-                                    case TransportType.Bus:
-                                        occupancy = Mod.m_Setting.target_occupancy_bus;
-                                        max_discount = Mod.m_Setting.max_ticket_discount_bus;
-                                        max_increase = Mod.m_Setting.max_ticket_increase_bus;
-                                        maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_bus / 100f));
-                                        minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_bus / 100f));
-                                        standard_ticket = Mod.m_Setting.standard_ticket_bus;
-                                        break;
-                                    case TransportType.Tram:
-                                        occupancy = Mod.m_Setting.target_occupancy_Tram;
-                                        max_discount = Mod.m_Setting.max_ticket_discount_Tram;
-                                        max_increase = Mod.m_Setting.max_ticket_increase_Tram;
-                                        maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Tram / 100f));
-                                        minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Tram / 100f));
-                                        standard_ticket = Mod.m_Setting.standard_ticket_Tram;
-                                        break;
-                                    case TransportType.Subway:
-                                        occupancy = Mod.m_Setting.target_occupancy_Subway;
-                                        max_discount = Mod.m_Setting.max_ticket_discount_Subway;
-                                        max_increase = Mod.m_Setting.max_ticket_increase_Subway;
-                                        maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Subway / 100f));
-                                        minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Subway / 100f));
-                                        standard_ticket = Mod.m_Setting.standard_ticket_Subway;
-                                        break;
-                                    case TransportType.Train:
-                                        occupancy = Mod.m_Setting.target_occupancy_Train;
-                                        max_discount = Mod.m_Setting.max_ticket_discount_Train;
-                                        max_increase = Mod.m_Setting.max_ticket_increase_Train;
-                                        minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Train / 100f));
-                                        maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Train / 100f));
-                                        standard_ticket = Mod.m_Setting.standard_ticket_Train;
-                                        break;
-                                    case TransportType.Ship:
-                                        occupancy = Mod.m_Setting.target_occupancy_Ship;
-                                        max_discount = Mod.m_Setting.max_ticket_discount_Ship;
-                                        max_increase = Mod.m_Setting.max_ticket_increase_Ship;
-                                        maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Ship / 100f));
-                                        minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Ship / 100f));
-                                        standard_ticket = Mod.m_Setting.standard_ticket_Ship;
-                                        break;
-                                    case TransportType.Airplane:
-                                        occupancy = Mod.m_Setting.target_occupancy_Airplane;
-                                        max_discount = Mod.m_Setting.max_ticket_discount_Airplane;
-                                        max_increase = Mod.m_Setting.max_ticket_increase_Airplane;
-                                        maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Airplane / 100f));
-                                        minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Airplane / 100f));
-                                        standard_ticket = Mod.m_Setting.standard_ticket_Airplane;
-                                        break;
-                                    case TransportType.Ferry:
-                                        occupancy = Mod.m_Setting.target_occupancy_Ferry;
-                                        max_discount = Mod.m_Setting.max_ticket_discount_Ferry;
-                                        max_increase = Mod.m_Setting.max_ticket_increase_Ferry;
-                                        maxVehicles = (int)Math.Round(maxVehicles * (1 + Mod.m_Setting.max_vahicles_adj_Ferry / 100f));
-                                        minVehicles = (int)Math.Round(minVehicles * (1 - Mod.m_Setting.min_vahicles_adj_Ferry / 100f));
-                                        standard_ticket = Mod.m_Setting.standard_ticket_Ferry;
-                                        break;
-
-                                    default:
-                                        continue;
-                                }
-                            }
-                            ticketPrice = standard_ticket;
-
-                            if (minVehicles < 1)
-                            {
-                                minVehicles = 1;
-                            }
-
-                            // ---- Busy stop / route alert via CustomChirps --------------------------------
-                            if (ChirpsEnabled && CustomChirpsBridge.IsAvailable && busiestStop != Entity.Null && numAlerts < maxAlertsPerCycle)
-                            {
-                                // Decide if the stop is "busy" using the per-stop queue size
-                                bool isBusy = maxStopWaiting >= passenger_capacity* BusyStopEnterPct;
-
-                                // Optional: also consider route-wide crowding vs target occupancy
-                                // Busy if we're above target + 2*threshold (same logic style you already use below)
-                                bool routeOverTarget = capacity > (occupancy + 2 * Mod.m_Setting.threshold) / 100f;
-
-                                bool shouldAlert = isBusy || routeOverTarget;
-
-                                // Check existing state for THIS stop so we don’t spam
-                                _busyStopAlerted.TryGetValue(busiestStop, out bool alreadyAlerted);
-
-                                if (shouldAlert && !alreadyAlerted)
-                                {
-                                    if (isBusy)
-                                    {
-                                        string lineLabel = T2WStrings.T(
-                                            "chirp.line_label",
-                                            ("type", transportLineData.m_TransportType.ToString()),
-                                            ("number", routeNumber.m_Number.ToString())
-                                        );
-
-                                        // Localized crowded stop message
-                                        string msg = T2WStrings.T(
-                                            "chirp.stop_busy",
-                                            ("line_label", lineLabel),
-                                            ("waiting", maxStopWaiting.ToString())
-                                        );
-
-                                        CustomChirpsBridge.PostChirp(
-                                        text: msg,
-                                        department: DepartmentAccountBridge.Transportation,
-                                        entity: busiestStop,                // clickable stop entity
-                                        customSenderName: T2WStrings.T("chirp.mod_name")    // shows who’s speaking
-                                        );
-
-                                        numAlerts++;
-                                    }
-
-                                    _busyStopAlerted[busiestStop] = true;   // arm the anti-spam latch
-                                }
-                                else if (!shouldAlert && alreadyAlerted)
-                                {
-                                    // Clear the latch when the stop cools down; use hysteresis so it doesn’t flap
-                                    if (maxStopWaiting <= passenger_capacity*BusyStopExitPct && !routeOverTarget)
-                                    {
-                                        _busyStopAlerted.Remove(busiestStop);
-                                    }
-                                }
-                            }
-
-
-                            //Calculating ticket change. If capacity is within +- 10% points of target occupancy no change
-                            // If price was reduced or increased from standard ticket but is within +- 20% points from target occupancy also no change
-                            if (capacity < (occupancy - Mod.m_Setting.threshold) / 100f)
-                            {
-                                setVehicles--;
-                                if (ticketPrice < standard_ticket && capacity < (occupancy - 2 * Mod.m_Setting.threshold) / 100f)
-                                {
-                                    if (ticketPrice > Math.Round((100 - max_discount) * standard_ticket / 100f))
-                                    {
-                                        ticketPrice--;
-                                    }
-                                    ////If occupancy is not too low, we don't need to have a very small number of vehicles
-                                    //if (setVehicles == minVehicles)
-                                    //{
-                                    //    setVehicles++;
-                                    //}
-                                }
-                                else if (ticketPrice == standard_ticket)
-                                {
-                                    ticketPrice--;
-                                }
-                            }
-                            else if (capacity > (occupancy + Mod.m_Setting.threshold) / 100f)
-                            {
-                                if (ticketPrice > standard_ticket && capacity > (occupancy + 2 * Mod.m_Setting.threshold) / 100f)
-                                {
-                                    if (ticketPrice < Math.Round((100 + max_increase) * standard_ticket / 100f))
-                                    {
-                                        ticketPrice++;
-                                    }
-                                }
-                                else if (ticketPrice == standard_ticket)
-                                {
-                                    ticketPrice++;
-                                }
-                                setVehicles++;
-                            }
-
-                            if (setVehicles > maxVehicles)
-                            {
-                                setVehicles = maxVehicles;
-                            }
-                            if (setVehicles < minVehicles)
-                            {
-                                setVehicles = minVehicles;
-                            }
-
-                            //If too many empty vehicles, don't update
-                            if (emptyVehicles / (float)oldVehicles > 0.3f)
-                            {
-                                setVehicles = oldVehicles;
-                            }
-
-                            if (standard_ticket == 0)
-                            {
-                                ticketPrice = 0;
-                            }
-
-                            int num1 = ticketPrice > 0 ? 1 : 0;
-                            DynamicBuffer<RouteModifierData> buffer = EntityManager.GetBuffer<RouteModifierData>(m_VehicleCountPolicy, true);
-                            m_PoliciesUISystem.SetPolicy(trans, m_TicketPricePolicy, num1 != 0, (float)ticketPrice);
-                            vehicleInterval = 100f / (stableDuration / (defaultVehicleInterval * setVehicles));
-                            //m_PoliciesUISystem.SetPolicy(trans, m_VehicleCountPolicy, true, CalculateAdjustmentFromVehicleCount(setVehicles, transportLineData.m_DefaultVehicleInterval, stableDuration, buffer, policySliderData));
-                            m_PoliciesUISystem.SetPolicy(trans, m_VehicleCountPolicy, true, vehicleInterval);
-
-                            if (Mod.m_Setting.debug && (oldVehicles != setVehicles || ticketPrice != oldTicketPrice))
-                            {
-                                Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Ticket Price:{ticketPrice}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Empty Vehicles:{emptyVehicles}, Passengers:{passengers}, Waiting Passengers:{waiting}, Occupancy:{capacity}, Target Occupancy:{occupancy / 100f}");
+                                data.BusiestStop = connected.m_Connected;
                             }
                         }
                     }
                 }
-            }  
+            }
+
+            // 4. Capacity Ratio
+            int totalCapacity = data.CurrentVehicles * data.PassengerCapacityPerVehicle;
+            if (totalCapacity > 0)
+            {
+                data.CurrentCapacityRatio = (float)(data.TotalPassengers + data.TotalWaiting) / totalCapacity;
+            }
+
+            return data;
         }
+
+        // [Main Logic] Analyzes a single route and applies changes (Price, Vehicles, Alerts)
+        private void ProcessRoute(Entity routeEntity, ref int alertsPostedThisCycle)
+        {
+            var transportLine = m_TransportLines[routeEntity];
+            var prefabRef = m_PrefabRefs[routeEntity];
+            var routeNumber = m_RouteNumbers[routeEntity];
+            var transportLineData = m_TransportLineDatas[prefabRef.m_Prefab];
+
+            if (Mod.m_Setting.debug)
+                Mod.log.Info($"--- Processing Route #{routeNumber.m_Number} ({transportLineData.m_TransportType}) ---");
+
+            if (!transportLineData.m_PassengerTransport)
+            {
+                if (Mod.m_Setting.debug)
+                    Mod.log.Info(routeEntity + $"   -> Skipped: Not a passenger transport line. It's cargo.");
+                return;
+            }
+
+            bool hasCustomRule = m_RouteRules.TryGetComponent(routeEntity, out var routeRule);
+
+            if (hasCustomRule && routeRule.customRule == default)
+            {
+                if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: Invalid Custom Rule.");
+                return;
+            }
+
+            RouteConfig config = GetRouteConfig(transportLineData.m_TransportType, hasCustomRule, routeRule);
+
+            if (config.OccupancyTarget == 0)
+            {
+                if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: Occupancy Target is 0 (Disabled in settings).");
+                return;
+            }
+
+            RouteData data = GetRouteData(routeEntity, transportLineData);
+
+            if (Mod.m_Setting.debug)
+            {
+                Mod.log.Info($"   -> Data: Vehicles={data.CurrentVehicles} (Empty: {data.EmptyVehicles}), CapPerVehicle={data.PassengerCapacityPerVehicle}, Passengers={data.TotalPassengers}, Waiting={data.TotalWaiting}");
+            }
+
+            if (data.CurrentVehicles == 0)
+            {
+                if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: No vehicles active on route.");
+                return;
+            }
+
+
+            DynamicBuffer<RouteWaypoint> waypoints = m_RouteWaypoints[routeEntity];
+            DynamicBuffer<RouteSegment> routeSegments = m_RouteSegments[routeEntity];
+            DynamicBuffer<RouteModifier> routeModifier = m_RouteModifiers[routeEntity];
+
+            float defaultVehicleInterval = transportLineData.m_DefaultVehicleInterval;
+            float vehicleInterval = defaultVehicleInterval;
+
+            RouteUtils.ApplyModifier(ref vehicleInterval, routeModifier, RouteModifierType.VehicleInterval);
+
+            float stableDuration = CalculateStableDuration(transportLineData, waypoints, routeSegments);
+
+            float weightedCapacityRatio = 0f;
+            int totalCapacity = data.CurrentVehicles * data.PassengerCapacityPerVehicle;
+            if (totalCapacity > 0)
+            {
+                weightedCapacityRatio = (data.TotalPassengers + (data.TotalWaiting * Mod.m_Setting.waiting_time_weight)) / (float)totalCapacity;
+            }
+
+            if (Mod.m_Setting.debug)
+            {
+                Mod.log.Info($"   -> Calc: TotalCap={totalCapacity}, WeightedRatio={weightedCapacityRatio:F2}, StableDuration={stableDuration}");
+            }
+
+            // Alert System
+            if (ChirpsEnabled && CustomChirpsBridge.IsAvailable && data.BusiestStop != Entity.Null && alertsPostedThisCycle < maxAlertsPerCycle)
+            {
+                if (!EntityManager.Exists(data.BusiestStop))
+                {
+                    if (_busyStopAlerted.ContainsKey(data.BusiestStop)) _busyStopAlerted.Remove(data.BusiestStop);
+                }
+                else
+                {
+                    bool isStopBusy = data.MaxStopWaiting >= (data.PassengerCapacityPerVehicle * BusyStopEnterPct);
+                    bool isRouteOverloaded = weightedCapacityRatio > (config.OccupancyTarget + 2 * Mod.m_Setting.threshold) / 100f;
+
+                    bool shouldAlert = isStopBusy || isRouteOverloaded;
+                    _busyStopAlerted.TryGetValue(data.BusiestStop, out bool alreadyAlerted);
+
+                    if (shouldAlert && !alreadyAlerted)
+                    {
+                        if (isStopBusy)
+                        {
+                            string lineLabel = T2WStrings.T("chirp.line_label",
+                                ("type", transportLineData.m_TransportType.ToString()),
+                                ("number", routeNumber.m_Number.ToString()));
+
+                            string msg = T2WStrings.T("chirp.stop_busy",
+                                ("line_label", lineLabel),
+                                ("waiting", data.MaxStopWaiting.ToString()));
+
+                            CustomChirpsBridge.PostChirp(msg, DepartmentAccountBridge.Transportation, data.BusiestStop, T2WStrings.T("chirp.mod_name"));
+                            if (Mod.m_Setting.debug)
+                            {
+                                Mod.log.Info($"   -> ALERT: Chirp posted for busy stop.");
+                                Mod.log.Info($"      line_label: {lineLabel}, waiting: {data.MaxStopWaiting}");
+                            }
+                            alertsPostedThisCycle++;
+                        }
+                        _busyStopAlerted[data.BusiestStop] = true;
+                    }
+                    else if (!shouldAlert && alreadyAlerted)
+                    {
+                        if (data.MaxStopWaiting <= (data.PassengerCapacityPerVehicle * BusyStopExitPct) && !isRouteOverloaded)
+                        {
+                            _busyStopAlerted.Remove(data.BusiestStop);
+                        }
+                    }
+                }
+            }
+
+            // =========================================================
+            // Ticket Price & Vehicle Count Adjustment Logic
+            // =========================================================
+
+            float totalLoad = data.TotalPassengers + (data.TotalWaiting * Mod.m_Setting.waiting_time_weight);
+
+            int ticketPrice = transportLine.m_TicketPrice;
+            if (ticketPrice == 0 && config.StandardTicketPrice > 0) ticketPrice = config.StandardTicketPrice;
+            int oldTicketPrice = ticketPrice;
+
+            // Min/Max Vehicle Calculation
+            PolicySliderData policySliderData = m_PolicySliderDatas[m_VehicleCountPolicy];
+            int maxVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.max, defaultVehicleInterval, stableDuration, m_RouteModifierDatas, m_VehicleCountPolicy, m_PolicySliderDatas);
+            int minVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.min, defaultVehicleInterval, stableDuration, m_RouteModifierDatas, m_VehicleCountPolicy, m_PolicySliderDatas);
+
+            int setVehicles = TransportLineSystem.CalculateVehicleCount(vehicleInterval, stableDuration);
+            int oldVehicles = setVehicles;
+
+            if (hasCustomRule)
+                minVehicles = (int)Math.Round(minVehicles * (1 - config.MinVehiclesAdj / 100f));
+            else
+            {
+                maxVehicles = (int)Math.Round(maxVehicles * (1 + config.MaxVehiclesAdj / 100f));
+                minVehicles = (int)Math.Round(minVehicles * (1 - config.MinVehiclesAdj / 100f));
+            }
+            if (minVehicles < 1) minVehicles = 1;
+
+            float targetRatio = config.OccupancyTarget / 100f;
+            float margin = Mod.m_Setting.threshold / 100f;
+            float upperLimit = targetRatio + margin;
+            float lowerLimit = targetRatio - margin;
+
+            // [Step A] Ticket Price Adjustment (Tiered Logic)
+            // Adjust price by +2/-2 for extreme demand deviation (2x margin), 
+            // and +1/-1 for moderate deviation (1x margin).
+
+            int maxPrice = (int)Math.Round((100 + config.MaxTicketIncrease) * config.StandardTicketPrice / 100f);
+            int minPrice = (int)Math.Round((100 - config.MaxTicketDiscount) * config.StandardTicketPrice / 100f);
+
+            // 1. Demand is VERY HIGH (Exceeds target by more than 2x margin)
+            if (weightedCapacityRatio > (targetRatio + 2 * margin))
+            {
+                if (ticketPrice < maxPrice)
+                {
+                    // Increase by 2, but do not exceed maxPrice
+                    int newPrice = Math.Min(ticketPrice + 2, maxPrice);
+
+                    if (newPrice != ticketPrice)
+                    {
+                        ticketPrice = newPrice;
+                        if (Mod.m_Setting.debug)
+                            Mod.log.Info($"   -> Action: Demand VERY HIGH. Increasing price aggressively (+2). New: {ticketPrice}");
+                    }
+                }
+            }
+            // 2. Demand is HIGH (Exceeds target by 1x margin)
+            else if (weightedCapacityRatio > (targetRatio + margin))
+            {
+                if (ticketPrice < maxPrice)
+                {
+                    ticketPrice++;
+                    if (Mod.m_Setting.debug)
+                        Mod.log.Info($"   -> Action: Demand HIGH. Increasing price (+1). New: {ticketPrice}");
+                }
+            }
+            // 3. Demand is VERY LOW (Below target by more than 2x margin)
+            else if (weightedCapacityRatio < (targetRatio - 2 * margin))
+            {
+                if (ticketPrice > minPrice)
+                {
+                    // Decrease by 2, but do not go below minPrice
+                    int newPrice = Math.Max(ticketPrice - 2, minPrice);
+
+                    if (newPrice != ticketPrice)
+                    {
+                        ticketPrice = newPrice;
+                        if (Mod.m_Setting.debug)
+                            Mod.log.Info($"   -> Action: Demand VERY LOW. Decreasing price aggressively (-2). New: {ticketPrice}");
+                    }
+                }
+            }
+            // 4. Demand is LOW (Below target by 1x margin)
+            else if (weightedCapacityRatio < (targetRatio - margin))
+            {
+                if (ticketPrice > minPrice)
+                {
+                    ticketPrice--;
+                    if (Mod.m_Setting.debug)
+                        Mod.log.Info($"   -> Action: Demand LOW. Decreasing price (-1). New: {ticketPrice}");
+                }
+            }
+
+            // [Step B] Calculate Required Vehicles
+            int singleVehicleCap = data.PassengerCapacityPerVehicle;
+
+            if (singleVehicleCap > 0)
+            {
+                float effectiveTargetRatio = targetRatio;
+                if (targetRatio == 0)
+                {
+                    if (Mod.m_Setting.debug)
+                    {
+                        Mod.log.Info($"   -> Warning:  Divide by zero may occur due to target ratio being 0.");
+                        Mod.log.Info($"  -> Calculate effective target ratio as 1% to avoid errors.");
+                    }
+                    effectiveTargetRatio = math.max(targetRatio, 0.01f);
+                }
+
+                // Calculate needed vehicles based on capacity ratio
+                if (weightedCapacityRatio > upperLimit)
+                {
+                    float needed = totalLoad / (singleVehicleCap * effectiveTargetRatio);
+                    setVehicles = (int)Math.Ceiling(needed);
+                }
+                else if (weightedCapacityRatio < lowerLimit)
+                {
+                    float needed = totalLoad / (singleVehicleCap * effectiveTargetRatio);
+                    setVehicles = (int)Math.Floor(needed);
+                }
+            }
+
+            // [Step C] Rate Limiting
+            // Limit the number of vehicles that can be adjusted in one update cycle
+            float limitPercent = Mod.m_Setting.max_adjustable_ongoing_unit / 100f;
+            int maxChangeAllowed = (int)Math.Max(1, Math.Round(oldVehicles * limitPercent));
+
+            if (setVehicles > oldVehicles + maxChangeAllowed)
+                setVehicles = oldVehicles + maxChangeAllowed;
+            else if (setVehicles < oldVehicles - maxChangeAllowed)
+                setVehicles = oldVehicles - maxChangeAllowed;
+
+            // [Step D] Clamp to Min/Max
+            setVehicles = math.clamp(setVehicles, minVehicles, maxVehicles);
+
+            // Prevent reducing vehicles if too many are empty
+            if (setVehicles < oldVehicles && data.EmptyVehicles / (float)oldVehicles > 0.3f)
+            {
+                setVehicles = oldVehicles;
+            }
+
+            // Apply Changes if needed
+            if (oldVehicles != setVehicles || oldTicketPrice != ticketPrice)
+            {
+                int isFree = ticketPrice > 0 ? 1 : 0;
+                m_PoliciesUISystem.SetPolicy(routeEntity, m_TicketPricePolicy, isFree != 0, (float)ticketPrice);
+
+                if (setVehicles > 0)
+                {
+                    float newInterval = 100f / (stableDuration / (defaultVehicleInterval * setVehicles));
+                    m_PoliciesUISystem.SetPolicy(routeEntity, m_VehicleCountPolicy, true, newInterval);
+                }
+
+                if (Mod.m_Setting.debug)
+                {
+                    Mod.log.Info($"Route:{routeNumber.m_Number} ({transportLineData.m_TransportType}) | " +
+                                 $"Ratio: {weightedCapacityRatio:P1} (Target: {targetRatio:P0}) | " +
+                                 $"Veh: {oldVehicles}->{setVehicles} (Limit +/-{maxChangeAllowed}) | " +
+                                 $"Price: {oldTicketPrice}->{ticketPrice}");
+                }
+            }
+        }
+
+
+        private RouteConfig GetRouteConfig(TransportType type, bool hasCustomRule, RouteRule routeRule)
+        {
+            RouteConfig config = new RouteConfig();
+
+            if (hasCustomRule)
+            {
+                var ruleData = m_ManageRouteSystem.GetCustomRule(routeRule.customRule);
+                config.OccupancyTarget = ruleData.Item3;
+                config.StandardTicketPrice = ruleData.Item4;
+                config.MaxTicketIncrease = ruleData.Item5;
+                config.MaxTicketDiscount = ruleData.Item6;
+                config.MaxVehiclesAdj = ruleData.Item7;
+                config.MinVehiclesAdj = ruleData.Item8;
+            }
+            else
+            {
+                switch (type)
+                {
+                    case TransportType.Bus:
+                        config.OccupancyTarget = Mod.m_Setting.target_occupancy_bus;
+                        config.StandardTicketPrice = Mod.m_Setting.standard_ticket_bus;
+                        config.MaxTicketIncrease = Mod.m_Setting.max_ticket_increase_bus;
+                        config.MaxTicketDiscount = Mod.m_Setting.max_ticket_discount_bus;
+                        config.MaxVehiclesAdj = Mod.m_Setting.max_vahicles_adj_bus;
+                        config.MinVehiclesAdj = Mod.m_Setting.min_vahicles_adj_bus;
+                        break;
+                    case TransportType.Tram:
+                        config.OccupancyTarget = Mod.m_Setting.target_occupancy_Tram;
+                        config.StandardTicketPrice = Mod.m_Setting.standard_ticket_Tram;
+                        config.MaxTicketIncrease = Mod.m_Setting.max_ticket_increase_Tram;
+                        config.MaxTicketDiscount = Mod.m_Setting.max_ticket_discount_Tram;
+                        config.MaxVehiclesAdj = Mod.m_Setting.max_vahicles_adj_Tram;
+                        config.MinVehiclesAdj = Mod.m_Setting.min_vahicles_adj_Tram;
+                        break;
+                    case TransportType.Subway:
+                        config.OccupancyTarget = Mod.m_Setting.target_occupancy_Subway;
+                        config.StandardTicketPrice = Mod.m_Setting.standard_ticket_Subway;
+                        config.MaxTicketIncrease = Mod.m_Setting.max_ticket_increase_Subway;
+                        config.MaxTicketDiscount = Mod.m_Setting.max_ticket_discount_Subway;
+                        config.MaxVehiclesAdj = Mod.m_Setting.max_vahicles_adj_Subway;
+                        config.MinVehiclesAdj = Mod.m_Setting.min_vahicles_adj_Subway;
+                        break;
+                    case TransportType.Train:
+                        config.OccupancyTarget = Mod.m_Setting.target_occupancy_Train;
+                        config.StandardTicketPrice = Mod.m_Setting.standard_ticket_Train;
+                        config.MaxTicketIncrease = Mod.m_Setting.max_ticket_increase_Train;
+                        config.MaxTicketDiscount = Mod.m_Setting.max_ticket_discount_Train;
+                        config.MaxVehiclesAdj = Mod.m_Setting.max_vahicles_adj_Train;
+                        config.MinVehiclesAdj = Mod.m_Setting.min_vahicles_adj_Train;
+                        break;
+                    case TransportType.Ship:
+                        config.OccupancyTarget = Mod.m_Setting.target_occupancy_Ship;
+                        config.StandardTicketPrice = Mod.m_Setting.standard_ticket_Ship;
+                        config.MaxTicketIncrease = Mod.m_Setting.max_ticket_increase_Ship;
+                        config.MaxTicketDiscount = Mod.m_Setting.max_ticket_discount_Ship;
+                        config.MaxVehiclesAdj = Mod.m_Setting.max_vahicles_adj_Ship;
+                        config.MinVehiclesAdj = Mod.m_Setting.min_vahicles_adj_Ship;
+                        break;
+                    case TransportType.Airplane:
+                        config.OccupancyTarget = Mod.m_Setting.target_occupancy_Airplane;
+                        config.StandardTicketPrice = Mod.m_Setting.standard_ticket_Airplane;
+                        config.MaxTicketIncrease = Mod.m_Setting.max_ticket_increase_Airplane;
+                        config.MaxTicketDiscount = Mod.m_Setting.max_ticket_discount_Airplane;
+                        config.MaxVehiclesAdj = Mod.m_Setting.max_vahicles_adj_Airplane;
+                        config.MinVehiclesAdj = Mod.m_Setting.min_vahicles_adj_Airplane;
+                        break;
+                    case TransportType.Ferry:
+                        config.OccupancyTarget = Mod.m_Setting.target_occupancy_Ferry;
+                        config.StandardTicketPrice = Mod.m_Setting.standard_ticket_Ferry;
+                        config.MaxTicketIncrease = Mod.m_Setting.max_ticket_increase_Ferry;
+                        config.MaxTicketDiscount = Mod.m_Setting.max_ticket_discount_Ferry;
+                        config.MaxVehiclesAdj = Mod.m_Setting.max_vahicles_adj_Ferry;
+                        config.MinVehiclesAdj = Mod.m_Setting.min_vahicles_adj_Ferry;
+                        break;
+                    default:
+                        config.OccupancyTarget = 0;
+                        config.StandardTicketPrice = 0;
+                        break;
+                }
+            }
+            return config;
+        }
+
     }
 }
