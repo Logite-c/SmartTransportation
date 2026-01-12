@@ -8,48 +8,55 @@
 	<!--Long description of the mod. Single line or multi line. Supports minimal markdown subset-->
 	<!--LongDescription Value="This is a long description" /-->
 	<LongDescription>
-This mod automates ticket prices and number of vehicles in transit routes. This will make your transit system smarter and able to adapt to peak and off-peak hours.
+		This mod automates ticket prices and number of vehicles in transit routes. This will make your transit system smarter and able to adapt to peak and off-peak hours.
 
-**New on Version 0.4:** Added Chirp messages to notify players when stops are busy.
+		**New on Version 0.5:** Added UI to configure custom rules.
 
-## Transit Section
+		## Transit Section
 
-It is possible to configure how the mod will adjust transit routes for each mode (Bus, Tram, Subway and Train). The settings that can be changed include:
+		It is possible to configure how the mod will adjust transit routes for each mode (Bus, Tram, Subway and Train). The settings that can be changed include:
 
-* **Ticket Price:** The user can configure the maximum fare increase and decrease for each transit mode. Fares will increase when vehicles are full to increase revenue and discourage more ridership, and they will decrease when vehicles are empty to encourage more riders.
-* **Target Occupancy:** The mod will change number of vehicles and adjust fares to try to reach the target occupancy. However, because there is a limit on the number of vehicles per route and also on the fare increase and decrease, the target occupancy might not be met in some cases. Also, a high target occupancy might decrease the frequency of transit vehicles, which consequently might discourage transit ridership. So choose wisely.
-* **Disable:** It is also possible to disable adjustments for each mode. In this case, the vehicle count and ticket price will remain with the previous values.
-* **Min/Max Vehicles:** The minimum and maximum number of vehicles is calculated in the base game based on the route lenght. This mod allows that minimum or maximum to be decreased or increased based on a certain percentage.
+		* **Ticket Price:** The user can configure the maximum fare increase and decrease for each transit mode. Fares will increase when vehicles are full to increase revenue and discourage more ridership, and they will decrease when vehicles are empty to encourage more riders.
+		* **Target Occupancy:** The mod will change number of vehicles and adjust fares to try to reach the target occupancy. However, because there is a limit on the number of vehicles per route and also on the fare increase and decrease, the target occupancy might not be met in some cases. Also, a high target occupancy might decrease the frequency of transit vehicles, which consequently might discourage transit ridership. So choose wisely.
+		* **Disable:** It is also possible to disable adjustments for each mode. In this case, the vehicle count and ticket price will remain with the previous values.
+		* **Min/Max Vehicles:** The minimum and maximum number of vehicles is calculated in the base game based on the route lenght. This mod allows that minimum or maximum to be decreased or increased based on a certain percentage.
 
-## Settings Section
+		## Settings Section
 
-The settings tab has some settings that affects all transit modes. These include:
+		The settings tab has some settings that affects all transit modes. These include:
 
-* **Waiting Time Weight:** When calculating occupancy, the mod trys to predict ridership by considering the number of weighting passengers at transit stops. Assuming that once those passengers board, a number of passengers that are in the vehicle will deboard, this weight will be applied to the number of waiting passengers to reduce their effect in the occupancy calculation.
-* **Target Occupancy Threshold:** When the mod compares a route occupancy with the target occupancy, it will consider the threshold within the target when making a decision. Default value is 10% but can be changed if desired.
-* **Write Transit Information to Log:** This option will write information such as occupancy and number of vehicles for each route to the log every time the mod evaluates a route. This is useful for debugging and understanding why the mod is picking certain ticket price or number of vehicles for each route.
+		* **Waiting Time Weight:** When calculating occupancy, the mod trys to predict ridership by considering the number of weighting passengers at transit stops. Assuming that once those passengers board, a number of passengers that are in the vehicle will deboard, this weight will be applied to the number of waiting passengers to reduce their effect in the occupancy calculation.
+		* **Target Occupancy Threshold:** When the mod compares a route occupancy with the target occupancy, it will consider the threshold within the target when making a decision. Default value is 10% but can be changed if desired.
+		* **Write Transit Information to Log:** This option will write information such as occupancy and number of vehicles for each route to the log every time the mod evaluates a route. This is useful for debugging and understanding why the mod is picking certain ticket price or number of vehicles for each route.
 
-## Credits and Mod Compatibility
+		## Custom Rules
 
-The min/max vehicle settings were based on the work developed by SonnyX on the Transport Policy Adjuster Mod. That mod also adjusts min/max vehicles but in a different way. This mod is not compatible with it.
+		There is an UI that allows the user to configure custom rules. There is a botton on the top left screen on the game access it.
+
+		In the UI, it is possible to View Custom Rules, Add Custom Rules and View Routes and Assign Rules. Custom rules can be deleted in the View Custom Rules panel and to assign a rule to route just click on a route on the View Routes / Assign Rules panel.
+		## Credits and Mod Compatibility
+
+		Thank you to Bruceyboy24804 for helping with the UI.
+		The min/max vehicle settings were based on the work developed by SonnyX on the Transport Policy Adjuster Mod. That mod also adjusts min/max vehicles but in a different way. This mod is not compatible with it.
 	</LongDescription>
 	<!--Thumbnail-->
 	<Thumbnail Value="Properties/Thumbnail.png" />
 	<!--Screenshot, can be set multiple times-->
 	<Screenshot Value="Properties/screenshot.png" />
 	<Screenshot Value="Properties/chirpmessage.png" />
+	<Screenshot Value="Properties/customrules.png" />
 	<!--Tag, can be set multiple times-->
 	<Tag Value="" />
 	<!--Link to the forum post where the mod can be discussed-->
 	<ForumLink Value="https://forum.paradoxplaza.com/forum/threads/smart-transportation-mod.1704128/" />
 	<!--Version of the mod-->
-	<ModVersion Value="0.4.3" />
+	<ModVersion Value="0.5.4" />
 	<!--Recommended version of the base game to use the mod-->
-	<GameVersion Value="1.3.*" />
+	<GameVersion Value="1.5.*" />
 	<!--Dependency for the mod, can be set multiple times-->
 	<Dependency Id="121812" />
 	<ChangeLog>
-* Added ferry
+		* Fixed bug that was keeping the same custom rules from a previous city when loading a new citys
 	</ChangeLog>
 	<!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon-->
 	<ExternalLink Type="github" Url="https://github.com/ruzbeh0/SmartTransportation" />

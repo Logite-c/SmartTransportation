@@ -19,6 +19,8 @@ using System.Text.RegularExpressions;
 using Unity.Collections;
 using Unity.Entities;
 using static Unity.Collections.Unicode;
+using Colossal.Serialization.Entities;
+
 
 namespace SmartTransportation.Bridge
 {
@@ -37,7 +39,7 @@ namespace SmartTransportation.Bridge
             { new Colossal.Hash128((uint)TransportType.Subway,0,0,0), TransportType.Subway.ToString()},
             { new Colossal.Hash128((uint)TransportType.Ship,0,0,0), TransportType.Ship.ToString()},
             { new Colossal.Hash128((uint)TransportType.Airplane,0,0,0), TransportType.Airplane.ToString()},
-
+            { new Colossal.Hash128((uint)TransportType.Ferry,0,0,0), TransportType.Ferry.ToString()},
         };
 
 
@@ -56,6 +58,58 @@ namespace SmartTransportation.Bridge
 
             RequireForUpdate(entityQuery);
         }
+
+        protected override void OnGameLoaded(Context serializationContext)
+        {
+            base.OnGameLoaded(serializationContext);
+
+            RemoveDuplicateCustomRuleEntities();
+            SyncDefaultRulesFromSettings();
+
+            // This system only needs to run on load.
+            firstUpdate = true;
+            Enabled = false;
+        }
+
+        private void RemoveDuplicateCustomRuleEntities()
+        {
+            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<CustomRule>());
+            using var entities = query.ToEntityArray(Allocator.Temp);
+            using var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
+
+            var seen = new HashSet<Colossal.Hash128>();
+
+            // Destroy any duplicate entities with the same ruleId.
+            for (int i = 0; i < rules.Length; i++)
+            {
+                var id = rules[i].ruleId;
+                if (seen.Add(id))
+                    continue;
+
+                EntityManager.DestroyEntity(entities[i]);
+            }
+        }
+
+        protected override void OnGamePreload(Purpose purpose, GameMode mode)
+        {
+            base.OnGamePreload(purpose, mode);
+
+            // We’re about to load/start a city. Clear any rules from the previously loaded city.
+            ClearAllCustomRules();
+
+            // Ensure we resync defaults for the next city after it finishes loading.
+            firstUpdate = false;
+            Enabled = true;
+        }
+
+        private void ClearAllCustomRules()
+        {
+            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<SmartTransportation.Components.CustomRule>());
+            EntityManager.DestroyEntity(query);
+
+            Mod.log.Info("[ManageRouteSystem] Cleared CustomRule entities on GamePreload.");
+        }
+
 
         private void SyncDefaultRulesFromSettings()
         {
@@ -121,7 +175,15 @@ namespace SmartTransportation.Bridge
                     maxAdj = Mod.m_Setting.max_vahicles_adj_Airplane;
                     minAdj = Mod.m_Setting.min_vahicles_adj_Airplane;
                 }
-
+                else if (ruleName == "Ferry")
+                {
+                    occ = Mod.m_Setting.target_occupancy_Ferry;
+                    ticket = Mod.m_Setting.standard_ticket_Ferry;
+                    inc = Mod.m_Setting.max_ticket_increase_Ferry;
+                    dec = Mod.m_Setting.max_ticket_discount_Ferry;
+                    maxAdj = Mod.m_Setting.max_vahicles_adj_Ferry;
+                    minAdj = Mod.m_Setting.min_vahicles_adj_Ferry;
+                }
                 else
                 {
                     continue; // Unknown built-in name
@@ -198,7 +260,8 @@ namespace SmartTransportation.Bridge
             if (EntityManager.TryGetComponent<RouteRule>(routeEntity, out RouteRule routeRule))
             {
                 ruleId = routeRule.customRule;
-            } else
+            }
+            else
             {
                 // Try to get prefab info for transport type fallback
                 if (EntityManager.TryGetComponent<PrefabRef>(routeEntity, out PrefabRef prefab))
@@ -215,13 +278,14 @@ namespace SmartTransportation.Bridge
                         TransportType.Train => Mod.m_Setting.disable_Train,
                         TransportType.Ship => Mod.m_Setting.disable_Ship,
                         TransportType.Airplane => Mod.m_Setting.disable_Airplane,
+                        TransportType.Ferry => Mod.m_Setting.disable_Ferry,
                         _ => true
                     };
 
 
                     if (!isDisabled)
                     {
-                        Colossal.Hash128 defaultId = new Colossal.Hash128((uint)transportType,0,0,0);
+                        Colossal.Hash128 defaultId = new Colossal.Hash128((uint)transportType, 0, 0, 0);
                         string defaultName = RuleNames.TryGetValue(defaultId, out var name) ? name : transportType.ToString();
 
                         return (defaultId, defaultName);
@@ -229,13 +293,22 @@ namespace SmartTransportation.Bridge
                 }
             }
 
+            // 1) Built-in rules first
             if (RuleNames.TryGetValue(ruleId, out var ruleName))
             {
                 return (ruleId, ruleName);
-            } else
-            {
-                return default;
             }
+
+            // 2) Try to resolve as a custom rule
+            var custom = GetCustomRule(ruleId);
+            if (!string.IsNullOrEmpty(custom.Item2)) // Item2 = ruleName
+            {
+                return (custom.ruleId, custom.Item2);
+            }
+
+            // 3) Nothing found => let caller fall back to "Disabled"
+            return default;
+
         }
 
 
@@ -260,6 +333,7 @@ namespace SmartTransportation.Bridge
                 TransportType.Train => Mod.m_Setting.disable_Train,
                 TransportType.Ship => Mod.m_Setting.disable_Ship,
                 TransportType.Airplane => Mod.m_Setting.disable_Airplane,
+                TransportType.Ferry => Mod.m_Setting.disable_Ferry,
                 _ => true
             };
 
@@ -354,13 +428,23 @@ namespace SmartTransportation.Bridge
         {
             var newRuleEntity = EntityManager.CreateEntity(typeof(CustomRule));
             CustomRule customRule = new CustomRule("Unnamed", 0, 0, 0, 0, 0, 0);
-            EntityManager.SetComponentData(newRuleEntity,customRule);
+            EntityManager.SetComponentData(newRuleEntity, customRule);
 
             return customRule.ruleId; // Return the generated ruleId
         }
 
         public static void RemoveCustomRule(Colossal.Hash128 ruleId)
         {
+            // Do not remove built-in rules (Bus, Tram, Train, etc.)
+            if (RuleNames.ContainsKey(ruleId))
+            {
+                if (Mod.log != null && RuleNames.TryGetValue(ruleId, out var name))
+                {
+                    Mod.log.Info($"[ManageRouteSystem] Ignoring delete for built-in rule '{name}'");
+                }
+                return;
+            }
+
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             EntityQuery query = entityManager.CreateEntityQuery(typeof(CustomRule));
             var entities = query.ToEntityArray(Allocator.Temp);
@@ -375,6 +459,7 @@ namespace SmartTransportation.Bridge
                 }
             }
         }
+
 
 
         public (Colossal.Hash128, string, int, int, int, int, int, int)[] GetCustomRules()
@@ -406,7 +491,162 @@ namespace SmartTransportation.Bridge
             return result;
         }
 
+        public struct RouteInfoForUI
+        {
+            public int routeNumber;
+            public string routeName;
+            public string transportType;
+            public string ruleName;
+            public Colossal.Hash128 ruleId;
+        }
 
+        public void SetRouteRuleForRoute(string transportTypeString, int routeNumber, Colossal.Hash128? ruleIdOrNull)
+        {
+            var entities = EntityManager.GetAllEntities(Allocator.Temp);
+            try
+            {
+                foreach (var ent in entities)
+                {
+                    if (!EntityManager.HasComponent<TransportLine>(ent))
+                        continue;
+                    if (!EntityManager.HasComponent<RouteNumber>(ent))
+                        continue;
+                    if (!EntityManager.HasComponent<PrefabRef>(ent))
+                        continue;
+
+                    var rn = EntityManager.GetComponentData<RouteNumber>(ent);
+                    if (rn.m_Number != routeNumber)
+                        continue;
+
+                    var prefabRef = EntityManager.GetComponentData<PrefabRef>(ent);
+                    if (!EntityManager.HasComponent<TransportLineData>(prefabRef.m_Prefab))
+                        continue;
+
+                    var tld = EntityManager.GetComponentData<TransportLineData>(prefabRef.m_Prefab);
+                    var tTypeString = tld.m_TransportType.ToString();
+
+                    if (!string.Equals(tTypeString, transportTypeString, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    // We found the route; apply the rule
+                    if (ruleIdOrNull.HasValue)
+                    {
+                        SetRouteRule(ent, ruleIdOrNull.Value);
+                    }
+                    else
+                    {
+                        // Disabled => clear / set to "Disabled" rule, however you handle that today
+                        //ClearRouteRule(ent);
+                    }
+
+                    break;
+                }
+            }
+            finally
+            {
+                entities.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Collects all transit routes and returns simple DTOs for the UI.
+        /// </summary>
+        public RouteInfoForUI[] GetRoutesForUI()
+        {
+            // Try to get the game's NameSystem so we can use custom route names
+            NameSystem nameSystem = null;
+            try
+            {
+                var world = World.DefaultGameObjectInjectionWorld;
+                if (world != null)
+                {
+                    nameSystem = world.GetExistingSystemManaged<NameSystem>();
+                }
+            }
+            catch
+            {
+                // If this fails (e.g. wrong context), we'll just fall back to default names
+            }
+
+            var result = new List<RouteInfoForUI>();
+
+            var entities = EntityManager.GetAllEntities(Allocator.Temp);
+            try
+            {
+                foreach (var ent in entities)
+                {
+                    // Only consider entities that are actual transport lines
+                    if (!EntityManager.HasComponent<TransportLine>(ent))
+                        continue;
+
+                    if (!EntityManager.HasComponent<RouteNumber>(ent))
+                        continue;
+
+                    if (!EntityManager.HasComponent<PrefabRef>(ent))
+                        continue;
+
+                    var routeNumber = EntityManager.GetComponentData<RouteNumber>(ent);
+                    var prefabRef = EntityManager.GetComponentData<PrefabRef>(ent);
+
+                    if (!EntityManager.HasComponent<TransportLineData>(prefabRef.m_Prefab))
+                        continue;
+
+                    var transportLineData = EntityManager.GetComponentData<TransportLineData>(prefabRef.m_Prefab);
+                    var transportType = transportLineData.m_TransportType;
+
+                    // Determine rule currently assigned to this route
+                    var (ruleId, ruleName) = GetRouteRule(ent);
+
+                    // Fallback to "Disabled" if nothing came back
+                    if (string.IsNullOrEmpty(ruleName))
+                    {
+                        if (RuleNames.TryGetValue(new Colossal.Hash128((uint)disabled_int_id, 0, 0, 0),
+                                                  out var disabledName))
+                        {
+                            ruleName = disabledName;
+                        }
+                        else
+                        {
+                            ruleName = "Disabled";
+                        }
+                    }
+
+                    // Route "display" name:
+                    // 1) Prefer the user's custom name (from NameSystem)
+                    // 2) Fall back to a simple "Type Line X" pattern
+                    string routeName;
+
+                    // Try to use the game’s custom name for this route, if any
+                    if (nameSystem != null &&
+                        nameSystem.TryGetCustomName(ent, out var customName) &&
+                        !string.IsNullOrWhiteSpace(customName))
+                    {
+                        routeName = customName;
+                    }
+                    else
+                    {
+                        // Fallback pattern when there's no custom name
+                        routeName = $"{transportType} Line {routeNumber.m_Number}";
+                    }
+
+                    result.Add(new RouteInfoForUI
+                    {
+                        routeNumber = routeNumber.m_Number,
+                        routeName = routeName,
+                        transportType = transportType.ToString(),
+                        ruleName = ruleName,
+                        ruleId = ruleId
+                    });
+
+                }
+            }
+            finally
+            {
+                entities.Dispose();
+            }
+
+            return result.ToArray();
+        }
 
 
         protected override void OnUpdate()

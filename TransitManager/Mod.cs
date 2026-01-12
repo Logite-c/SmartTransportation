@@ -20,6 +20,7 @@ namespace SmartTransportation
 
         public static Setting m_Setting;
         public static readonly string harmonyID = "SmartTransportation";
+        public static readonly string Id = "SmartTransportation";
 
         // Mods Settings Folder
         public static string SettingsFolder = Path.Combine(EnvPath.kUserDataPath, "ModsSettings", nameof(SmartTransportation));

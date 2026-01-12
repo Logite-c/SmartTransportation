@@ -5,6 +5,7 @@ using SmartTransportation.Bridge;
 using SmartTransportation.Extensions;
 using System;
 using Colossal;
+using SmartTransportation.Extensions;
 
 namespace SmartTransportation.Systems
 {
